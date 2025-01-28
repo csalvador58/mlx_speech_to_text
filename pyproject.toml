@@ -2,7 +2,7 @@
 name = "speech_to_text"
 version = "0.1.0"
 description = "Real-time speech-to-text transcription tool using MLX Whisper"
-readme = "src/README.md"
+readme = "README.md"
 requires-python = ">=3.10.16"
 dependencies = [
     "mlx-whisper>=0.1.0",
