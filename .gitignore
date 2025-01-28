@@ -51,3 +51,5 @@ ENV/
 # Logs
 *.log
 logs/
+src/.cache/*
+!src/.cache/.gitignore
