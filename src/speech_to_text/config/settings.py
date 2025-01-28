@@ -26,3 +26,15 @@ LOG_LEVEL = "INFO"
 DEFAULT_SILENCE_THRESHOLD = 500  # Default threshold for silence detection
 CALIBRATION_FRAMES = 30         # Number of frames to use for calibration
 CALIBRATION_BUFFER = 200        # Buffer to add to mean noise level
+
+# Output Directory Settings
+OUTPUT_DIR = "src/.cache"  # Base directory for output files
+
+# Kokoro Text-to-Speech Settings
+KOKORO_BASE_URL = "http://localhost:8880/v1"
+KOKORO_API_KEY = "not-needed"
+KOKORO_MODEL = "kokoro"
+KOKORO_VOICE = "af"
+KOKORO_RESPONSE_FORMAT = "mp3"
+KOKORO_OUTPUT_FILENAME = f"{OUTPUT_DIR}/mlxw_to_kokoro_output.mp3"
+TRANSCRIPTION_OUTPUT_FILENAME = f"{OUTPUT_DIR}/transcription.txt"

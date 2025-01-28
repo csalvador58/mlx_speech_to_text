@@ -11,6 +11,7 @@ import pyperclip
 from speech_to_text.audio.recorder import AudioRecorder
 from speech_to_text.transcriber.whisper import WhisperTranscriber
 from speech_to_text.utils.logging import setup_logging
+from speech_to_text.kokoro import KokoroHandler
 
 def save_transcription(text: str, output_file: str) -> None:
     """Save transcription to a file."""
@@ -25,15 +26,22 @@ def handle_transcription(
     recorder: AudioRecorder,
     transcriber: WhisperTranscriber,
     copy_to_clipboard: bool = False,
-    output_file: str = None
+    output_file: str = None,
+    use_kokoro: bool = False
 ) -> bool:
     """
     Handle a single transcription cycle.
     
+    Args:
+        recorder: Audio recorder instance
+        transcriber: Whisper transcriber instance
+        copy_to_clipboard: Whether to copy transcription to clipboard
+        output_file: File to save transcription to
+        use_kokoro: Whether to convert transcription to speech using Kokoro
+        
     Returns:
         bool: False if exit command detected, True otherwise
     """
-    # Record audio
     frames, success = recorder.record_audio()
     if not success or not frames:
         logging.error("Failed to record audio")
@@ -70,6 +78,15 @@ def handle_transcription(
             logging.info("Exit command received")
             return False
 
+    if text and use_kokoro:
+        try:
+            kokoro_handler = KokoroHandler()
+            output_path = kokoro_handler.convert_text_to_speech(text)
+            if output_path:
+                logging.info(f"Text-to-speech conversion saved to: {output_path}")
+        except Exception as e:
+            logging.error(f"Error in Kokoro conversion: {e}")
+
     return True
 
 def main():
@@ -92,6 +109,11 @@ def main():
         action="store_true",
         help="Copy transcription to clipboard"
     )
+    parser.add_argument(
+        "--kokoro",
+        action="store_true",
+        help="Enable Kokoro text-to-speech conversion"
+    )
     args = parser.parse_args()
 
     # Set up logging
@@ -111,7 +133,8 @@ def main():
                     recorder,
                     transcriber,
                     copy_to_clipboard=args.copy,
-                    output_file=args.output_file
+                    output_file=args.output_file,
+                    use_kokoro=args.kokoro
                 )
             else:
                 # Continuous transcription mode
@@ -119,7 +142,8 @@ def main():
                     if not handle_transcription(
                         recorder,
                         transcriber,
-                        copy_to_clipboard=args.copy
+                        copy_to_clipboard=args.copy,
+                        use_kokoro=args.kokoro
                     ):
                         break
                     logging.info("Press Enter to start listening again...")
