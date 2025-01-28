@@ -59,7 +59,6 @@ class WhisperTranscriber:
             if normalize_text:
                 result["text"] = self._normalize_text(result["text"])
 
-            logging.info("Transcription completed successfully")
             return result
 
         except Exception as e:

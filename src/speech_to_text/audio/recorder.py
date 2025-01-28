@@ -5,6 +5,7 @@ Handles microphone input and audio processing.
 """
 
 import logging
+import sys
 import numpy as np
 import pyaudio
 from typing import Optional, List, Tuple
@@ -101,26 +102,46 @@ class AudioRecorder:
         self.start_stream()
         frames = []
         silent_chunks = 0
+        last_message_length = 0
         
         try:
             while True:
                 data = self.stream.read(CHUNK_SIZE, exception_on_overflow=False)
                 audio_data = np.frombuffer(data, dtype=np.int16)
-                
+
                 # Check if audio_data exceeds the silence threshold
                 if np.max(np.abs(audio_data)) < self.silence_threshold:
+
+                    # Create the status bar
+                    progress = silent_chunks / SILENCE_CHUNKS
+                    bar_length = 30  # Length of the progress bar
+                    filled_length = int(progress * bar_length)
+                    bar = "#" * filled_length + "-" * (bar_length - filled_length)
+                    message = f"Silence delay [{bar}]"
+
+                    # Clear the previous message by writing spaces equal to its length
+                    sys.stdout.write(f"\r{' ' * last_message_length}\r")
+                    sys.stdout.write(message)
+                    sys.stdout.flush()
+
+                    last_message_length = len(message)
+                    
                     silent_chunks += 1
                 else:
                     silent_chunks = 0
-                
+
                 # If we have enough silence chunks, consider it the end of speech
                 if silent_chunks > SILENCE_CHUNKS:
                     break
-                
+
                 frames.append(audio_data)
-            
+
+            # Move to the next line after finishing
+            sys.stdout.write("\n")
+            sys.stdout.flush()
+
             return frames, True
-            
+
         except Exception as e:
             logging.error(f"Error recording audio: {e}")
             return frames, False
