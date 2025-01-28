@@ -1,0 +1,5 @@
+# File: requirements.txt
+mlx-whisper>=0.1.0
+numpy>=1.21.0
+PyAudio>=0.2.11
+pyperclip>=1.8.2

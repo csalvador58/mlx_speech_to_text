@@ -1,0 +1,28 @@
+# File: src/speech_to_text/config/settings.py
+"""
+Configuration settings for the speech-to-text application.
+"""
+
+import pyaudio
+
+# Audio Recording Settings
+AUDIO_FORMAT = pyaudio.paInt16  # Audio format (16-bit int)
+CHANNELS = 1                    # Number of audio channels (mono)
+SAMPLE_RATE = 16000            # Sampling rate (16 kHz)
+CHUNK_SIZE = 1024              # Buffer size
+SILENCE_CHUNKS = 50            # Number of consecutive chunks of silence before stopping
+
+# Whisper Model Settings
+# MODEL_NAME = "mlx-community/whisper-tiny"  # Default model
+MODEL_NAME = "mlx-community/whisper-large-v3-mlx"
+VERBOSE = False                # Verbose output from transcriber
+WORD_TIMESTAMPS = False        # Whether to include word timestamps
+
+# Logging Settings
+LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+LOG_LEVEL = "INFO"
+
+# Default values
+DEFAULT_SILENCE_THRESHOLD = 500  # Default threshold for silence detection
+CALIBRATION_FRAMES = 30         # Number of frames to use for calibration
+CALIBRATION_BUFFER = 200        # Buffer to add to mean noise level
