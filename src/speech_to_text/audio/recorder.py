@@ -34,7 +34,7 @@ class AudioRecorder:
         """Context manager entry point."""
         return self
         
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Context manager exit point for cleanup."""
         self.cleanup()
 

@@ -34,7 +34,6 @@ class KokoroHandler:
         """Ensure the output directory exists."""
         try:
             os.makedirs(OUTPUT_DIR, exist_ok=True)
-            logging.info(f"Output directory ensured: {OUTPUT_DIR}")
         except Exception as e:
             logging.error(f"Error creating output directory: {e}")
             raise
@@ -54,15 +53,20 @@ class KokoroHandler:
             return None
             
         try:
+            # Log request before making the API call
+            logging.debug(f"Making request to Kokoro API - URL: {KOKORO_BASE_URL}/audio/speech")
+            logging.debug(f"Request parameters - Model: {KOKORO_MODEL}, Voice: {KOKORO_VOICE}, Format: {KOKORO_RESPONSE_FORMAT}")
+            
             with self.client.audio.speech.with_streaming_response.create(
                 model=KOKORO_MODEL,
                 voice=KOKORO_VOICE,
                 input=text,
                 response_format=KOKORO_RESPONSE_FORMAT
             ) as response:
+                # Log successful response
+                logging.debug(f"Received response from Kokoro API - Status: {response.status_code}")
                 response.stream_to_file(KOKORO_OUTPUT_FILENAME)
                 
-            logging.info(f"Text-to-speech conversion completed: {KOKORO_OUTPUT_FILENAME}")
             return KOKORO_OUTPUT_FILENAME
             
         except Exception as e:

@@ -6,19 +6,24 @@ Handles command line arguments and orchestrates the transcription process.
 
 import argparse
 import logging
+import os
 import pyperclip
 
 from speech_to_text.audio.recorder import AudioRecorder
 from speech_to_text.transcriber.whisper import WhisperTranscriber
 from speech_to_text.utils.logging import setup_logging
 from speech_to_text.kokoro import KokoroHandler
+from speech_to_text.config.settings import MLXW_OUTPUT_FILENAME
 
 def save_transcription(text: str, output_file: str) -> None:
     """Save transcription to a file."""
     try:
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        
         with open(output_file, 'w') as f:
             f.write(text)
-        logging.info(f"Transcription saved to {output_file}")
+        logging.info(f"Transcription saved to: {output_file}")
     except Exception as e:
         logging.error(f"Error saving transcription to file: {e}")
 
@@ -143,6 +148,7 @@ def main():
                         recorder,
                         transcriber,
                         copy_to_clipboard=args.copy,
+                        output_file=f"{MLXW_OUTPUT_FILENAME}",
                         use_kokoro=args.kokoro
                     ):
                         break

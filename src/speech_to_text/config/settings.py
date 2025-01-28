@@ -20,7 +20,7 @@ WORD_TIMESTAMPS = False        # Whether to include word timestamps
 
 # Logging Settings
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
-LOG_LEVEL = "INFO"
+LOG_LEVEL = "INFO"              # Set to DEBUG or INFO
 
 # Default values
 DEFAULT_SILENCE_THRESHOLD = 500  # Default threshold for silence detection
@@ -29,6 +29,7 @@ CALIBRATION_BUFFER = 200        # Buffer to add to mean noise level
 
 # Output Directory Settings
 OUTPUT_DIR = "src/.cache"  # Base directory for output files
+MLXW_OUTPUT_FILENAME = f"{OUTPUT_DIR}/mlxw_to_text.txt"
 
 # Kokoro Text-to-Speech Settings
 KOKORO_BASE_URL = "http://localhost:8880/v1"
