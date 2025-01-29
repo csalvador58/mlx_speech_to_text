@@ -1,15 +1,11 @@
 # File: src/speech_to_text/kokoro/__init__.py
 """
 Kokoro package for text-to-speech conversion.
-Exposes the KokoroHandler class and text optimization utilities.
+Exposes the KokoroHandler class for text-to-speech functionality.
 """
 
-from .mlxw_to_kokoro import (
-    KokoroHandler,
-    optimize_for_voice,
-)
+from .mlxw_to_kokoro import KokoroHandler
 
 __all__ = [
-    'KokoroHandler',
-    'optimize_for_voice',
+    'KokoroHandler'
 ]

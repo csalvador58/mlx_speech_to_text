@@ -6,7 +6,6 @@ Handles the conversion of text to speech using the Kokoro API.
 
 import logging
 import os
-import re
 from typing import Optional
 import pyaudio
 from openai import OpenAI
@@ -16,101 +15,12 @@ from speech_to_text.config.settings import (
     KOKORO_API_KEY,
     KOKORO_MODEL,
     KOKORO_VOICE,
+    KOKORO_SPEED,
     KOKORO_RESPONSE_FORMAT,
     KOKORO_OUTPUT_FILENAME,
     OUTPUT_DIR,
 )
-from speech_to_text.config import (
-    WORD_REPLACEMENTS,
-    PUNCTUATION_REPLACEMENTS,
-    GLOBAL_REPLACEMENTS,
-)
-
-# Pre-processing patterns for specific formats
-LIST_ITEM_PATTERN = re.compile(r'^\d+\.\s+')
-MARKDOWN_BOLD_PATTERN = re.compile(r'\*\*(.+?)\*\*')
-MARKDOWN_ITALIC_PATTERN = re.compile(r'\*(.+?)\*')
-MARKDOWN_LINK_PATTERN = re.compile(r'\[(.+?)\]\(.+?\)')
-MARKDOWN_CODE_PATTERN = re.compile(r'`(.+?)`')
-
-def optimize_for_voice(text: str) -> str:
-    """
-    Optimize text for voice synthesis by applying various text transformations.
-    
-    Args:
-        text: Input text to optimize
-        
-    Returns:
-        str: Optimized text ready for voice synthesis
-    """
-    # Pre-process markdown patterns
-    def preprocess_markdown(text: str) -> str:
-        """Remove markdown formatting while preserving content."""
-        # Remove numbered list markers but keep the text
-        text = LIST_ITEM_PATTERN.sub('', text)
-        
-        # Remove bold/italic markers but keep the text
-        text = MARKDOWN_BOLD_PATTERN.sub(r'\1', text)
-        text = MARKDOWN_ITALIC_PATTERN.sub(r'\1', text)
-        
-        # Convert links to just their text
-        text = MARKDOWN_LINK_PATTERN.sub(r'\1', text)
-        
-        # Remove code markers
-        text = MARKDOWN_CODE_PATTERN.sub(r'\1', text)
-        
-        return text
-
-    def replace_word(match):
-        """Replace matched word while preserving case."""
-        word = match.group()
-        replacement = WORD_REPLACEMENTS.get(word.lower())
-        if replacement is None:
-            return word
-        # Preserve original case if the word was capitalized
-        if word.isupper():
-            return replacement.upper()
-        if word[0].isupper():
-            return replacement.capitalize()
-        return replacement
-
-    def replace_with_dict(text: str, replacements: dict, pattern: str) -> str:
-        """Apply replacements using a given pattern."""
-        def replace_match(match):
-            char = match.group()
-            return replacements.get(char, char)
-        return re.sub(pattern, replace_match, text)
-
-    # Step 1: Pre-process markdown formatting
-    text = preprocess_markdown(text)
-    
-    # Step 2: Replace common abbreviations and technical terms
-    word_pattern = r'\b(?<!\w)(' + '|'.join(re.escape(key) for key in WORD_REPLACEMENTS.keys()) + r')(?!\w)\b'
-    text = re.sub(word_pattern, replace_word, text, flags=re.IGNORECASE)
-
-    # Step 3: Handle punctuation (only when surrounded by spaces or at string boundaries)
-    punct_pattern = (
-        r'(?<=\s)[' + 
-        re.escape(''.join(PUNCTUATION_REPLACEMENTS.keys())) + 
-        r'](?=\s)|(?<=\s)[' +
-        re.escape(''.join(PUNCTUATION_REPLACEMENTS.keys())) +
-        r']|[' +
-        re.escape(''.join(PUNCTUATION_REPLACEMENTS.keys())) +
-        r'](?=\s)'
-    )
-    text = replace_with_dict(text, PUNCTUATION_REPLACEMENTS, punct_pattern)
-
-    # Step 4: Apply global character replacements
-    global_pattern = '[' + re.escape(''.join(GLOBAL_REPLACEMENTS.keys())) + ']'
-    text = replace_with_dict(text, GLOBAL_REPLACEMENTS, global_pattern)
-
-    # Step 5: Clean up multiple spaces and trim
-    text = ' '.join(text.split())
-    
-    # Step 6: Add natural pauses between list items
-    text = re.sub(r'(?<=\w)\.(?=\s+[A-Z])', '... ', text)
-    
-    return text
+from speech_to_text.config.text_optimizations import optimizer
 
 class KokoroHandler:
     """Handles text-to-speech conversion using the Kokoro API."""
@@ -147,21 +57,22 @@ class KokoroHandler:
             return None
 
         try:
+            logging.debug(f"Original text: {text}")
+            
             if optimize:
-                text = optimize_for_voice(text)
-                logging.debug(f"Optimized text for voice: {text}")
+                text = optimizer(text)
+                logging.debug(f"Optimized text: {text}")
 
-            # Log request before making the API call
             logging.debug(f"Making request to Kokoro API - URL: {KOKORO_BASE_URL}/audio/speech")
             logging.debug(f"Request parameters - Model: {KOKORO_MODEL}, Voice: {KOKORO_VOICE}, Format: {KOKORO_RESPONSE_FORMAT}")
             
             with self.client.audio.speech.with_streaming_response.create(
                 model=KOKORO_MODEL,
                 voice=KOKORO_VOICE,
+                speed=KOKORO_SPEED,
                 input=text,
                 response_format=KOKORO_RESPONSE_FORMAT
             ) as response:
-                # Log successful response
                 logging.debug(f"Received response from Kokoro API - Status: {response.status_code}")
                 response.stream_to_file(KOKORO_OUTPUT_FILENAME)
                 
@@ -187,9 +98,13 @@ class KokoroHandler:
             return False
             
         try:
+            # Log the original text
+            logging.info(f"Voice text optimization is enabled: {optimize}")
+            logging.debug(f"Original text: {text}")
+            
             if optimize:
-                text = optimize_for_voice(text)
-                logging.debug(f"Optimized text for voice: {text}")
+                text = optimizer(text)
+                logging.debug(f"Optimized text: {text}")
 
             # Initialize PyAudio
             audio = pyaudio.PyAudio()
@@ -206,6 +121,7 @@ class KokoroHandler:
             with self.client.audio.speech.with_streaming_response.create(
                 model=KOKORO_MODEL,
                 voice=KOKORO_VOICE,
+                speed=KOKORO_SPEED,
                 input=text,
                 response_format="pcm"  # Use PCM format for direct streaming
             ) as response:

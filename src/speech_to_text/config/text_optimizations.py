@@ -3,74 +3,85 @@
 Configuration file containing text optimization rules for voice synthesis.
 These rules are used to enhance the quality of synthesized speech output.
 """
+from dataclasses import dataclass, field
+from typing import Dict
 import re
 
-# Word replacements for common abbreviations and terms
-# Keys are matched case-insensitively
-WORD_REPLACEMENTS = {
-    # Technical terms
-    "jsonl": "json el",
-    "api": "A P I",
-    "url": "U R L",
-    "sql": "S Q L",
-    "html": "H T M L",
-    "css": "C S S",
-    "js": "JavaScript",
-    "jwt": "J W T",
-    "crud": "C R U D",
-    "ui": "U I",
-    "ux": "U X",
-    "cdn": "C D N",
-    "ssl": "S S L",
-    "tcp": "T C P",
-    "ip": "I P",
-    
-    # Numbers in lists
-    r"^\d+\.": "",  # Remove numbered list markers
-    
-    # Common markdown patterns
-    r"\*\*(.+?)\*\*": r"\1",  # Remove bold markers
-    r"\*(.+?)\*": r"\1",      # Remove italic markers
-    r"_(.+?)_": r"\1",        # Remove underscore emphasis
-    r"`(.+?)`": r"\1",        # Remove code markers
-    r"#": "",                 # Remove header markers
-    r"\[(.+?)\](\(.+?\))": r"\1",  # Convert links to just text
-}
+def get_default_abbreviations() -> Dict[str, str]:
+    return {
+        "api": "A P I",
+        "url": "U R L",
+        "sql": "S Q L",
+        "html": "H T M L",
+        "css": "C S S",
+        "js": "JavaScript",
+        "jwt": "J W T",
+        "crud": "C R U D",
+        "ui": "U I",
+        "ux": "U X",
+    }
 
-# Punctuation replacements for better speech pacing
-# Applied only when characters are surrounded by spaces or at string boundaries
-PUNCTUATION_REPLACEMENTS = {
-    ".": "...",     # Extend pause at sentence end
-    ":": ",",       # Convert colons to commas for more natural pausing
-    "–": " ",       # Convert en-dash to space
-    "—": " ",       # Convert em-dash to space
-    ";": ",",       # Convert semicolons to commas
-    "•": ", ",      # Convert bullets to comma and space
-    ">": ", ",      # Convert blockquote markers to pauses
-}
+def get_default_char_replacements() -> Dict[str, str]:
+    return {
+        ".": "...",  # Extend pause
+        ":": ",",    # Natural pause
+        ";": ",",    # Natural pause
+        "–": " ",    # Space for readability
+        "—": " ",    # Space for readability
+        "|": ",",    # Natural pause
+        "•": ",",    # Natural pause for bullets
+    }
 
-# Global character replacements
-# Applied to all occurrences regardless of surrounding context
-GLOBAL_REPLACEMENTS = {
-    "#": "",        # Remove hashtags
-    "*": "",        # Remove asterisks
-    "-": " ",       # Convert hyphens to spaces
-    "–": "",        # Remove en-dashes
-    "—": "",        # Remove em-dashes
-    "`": "",        # Remove backticks
-    "|": "",        # Remove vertical bars
-    "~": "",        # Remove tildes
-    "•": ",",       # Convert bullets to commas
-    "_": "",        # Remove underscores
-    "[": "",        # Remove square brackets
-    "]": "",        # Remove square brackets
-    "(": "",        # Remove parentheses
-    ")": "",        # Remove parentheses
-}
+@dataclass
+class TextOptimizer:
+    """
+    Handles text optimization for voice synthesis with clear separation of concerns.
+    """
+    ABBREVIATIONS: Dict[str, str] = field(default_factory=get_default_abbreviations)
+    CHAR_REPLACEMENTS: Dict[str, str] = field(default_factory=get_default_char_replacements)
+    CHARS_TO_REMOVE: str = r'[*#`~\[\]()]'
 
-# Pre-processing patterns for specific formats
-LIST_ITEM_PATTERN = re.compile(r'^\d+\.\s+')
-MARKDOWN_BOLD_PATTERN = re.compile(r'\*\*(.+?)\*\*')
-MARKDOWN_ITALIC_PATTERN = re.compile(r'\*(.+?)\*')
-MARKDOWN_LINK_PATTERN = re.compile(r'\[(.+?)\]\(.+?\)')
-MARKDOWN_CODE_PATTERN = re.compile(r'`(.+?)`')
+    def optimize(self, text: str) -> str:
+        """
+        Optimize text for voice synthesis using a clear, sequential process.
+        
+        Args:
+            text: Input text to optimize
+            
+        Returns:
+            str: Optimized text for voice synthesis
+        """
+        if not text:
+            return text
+
+        # 1. Replace abbreviations (case-insensitive)
+        pattern = r'\b(' + '|'.join(map(re.escape, self.ABBREVIATIONS.keys())) + r')\b'
+        text = re.sub(pattern, lambda m: self.ABBREVIATIONS[m.group().lower()], text, flags=re.IGNORECASE)
+
+        # 2. Replace characters for better speech flow
+        for char, replacement in self.CHAR_REPLACEMENTS.items():
+            text = text.replace(char, replacement)
+
+        # 3. Remove unnecessary characters
+        text = re.sub(self.CHARS_TO_REMOVE, ' ', text)
+
+        # 4. Clean up whitespace and add natural pauses
+        text = ' '.join(text.split())  # Normalize spaces
+        text = re.sub(r'(?<=\w)\.(?=\s+[A-Z])', '... ', text)  # Add pauses between sentences
+
+        return text
+
+    def __call__(self, text: str) -> str:
+        """
+        Make the class callable for easier integration.
+        
+        Args:
+            text: Input text to optimize
+            
+        Returns:
+            str: Optimized text
+        """
+        return self.optimize(text)
+
+# Create a singleton instance
+optimizer = TextOptimizer()

@@ -32,17 +32,17 @@ def get_env_int(key: str, default: int) -> int:
 
 # Logging Settings
 LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(levelname)s - %(message)s')
-LOG_LEVEL = 'DEBUG' # INFO | DEBUG
+LOG_LEVEL = 'INFO' # INFO | DEBUG
 
 # Audio Recording Settings
 AUDIO_FORMAT = pyaudio.paInt16
 CHANNELS = 1
 SAMPLE_RATE = 16000
 CHUNK_SIZE = 1024
-SILENCE_CHUNKS = 50
+SILENCE_CHUNKS = 30
 
 # Default thresholds and calibration settings
-DEFAULT_SILENCE_THRESHOLD = 250
+DEFAULT_SILENCE_THRESHOLD = 500
 CALIBRATION_FRAMES = 30
 CALIBRATION_BUFFER = 200
 
@@ -62,6 +62,7 @@ KOKORO_BASE_URL = os.getenv('KOKORO_BASE_URL', 'http://localhost:8880/v1')
 KOKORO_API_KEY = os.getenv('KOKORO_API_KEY', 'not-needed')
 KOKORO_MODEL = os.getenv('KOKORO_MODEL', 'kokoro')
 KOKORO_VOICE = os.getenv('KOKORO_VOICE', 'af')
+KOKORO_SPEED = 1.1
 KOKORO_RESPONSE_FORMAT = "mp3"
 KOKORO_OUTPUT_FILENAME = f"{OUTPUT_DIR}/mlxw_to_kokoro_output.mp3"
 
