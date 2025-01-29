@@ -39,7 +39,7 @@ AUDIO_FORMAT = pyaudio.paInt16
 CHANNELS = 1
 SAMPLE_RATE = 16000
 CHUNK_SIZE = 1024
-SILENCE_CHUNKS = 30
+SILENCE_CHUNKS = 15  # Increase to add delay before voice processing
 
 # Default thresholds and calibration settings
 DEFAULT_SILENCE_THRESHOLD = 500
