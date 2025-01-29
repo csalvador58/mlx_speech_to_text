@@ -64,7 +64,7 @@ def main():
     parser.add_argument(
         "--kokoro",
         action="store_true",
-        help="Enable Kokoro text-to-speech conversion"
+        help="Enable Kokoro text-to-speech conversion and saves to audio file"
     )
     parser.add_argument(
         "--llm",
@@ -75,6 +75,11 @@ def main():
         "--chat",
         action="store_true",
         help="Enable interactive chat mode with LLM"
+    )
+    parser.add_argument(
+        "--chat-voice",
+        action="store_true",
+        help="Enable interactive chat mode with voice responses streamed to speakers"
     )
     parser.add_argument(
         "--chat-id",
@@ -93,7 +98,7 @@ def main():
 
     # Initialize chat handler if needed
     chat_handler = None
-    if args.chat:
+    if args.chat or args.chat_voice:
         chat_handler = ChatHandler()
         if args.chat_id:
             if not chat_handler.load_existing_chat(args.chat_id):
@@ -121,7 +126,8 @@ def main():
                     output_file=args.output_file,
                     use_kokoro=args.kokoro,
                     use_llm=args.llm,
-                    chat_handler=chat_handler
+                    chat_handler=chat_handler,
+                    stream_to_speakers=args.chat_voice
                 )
             else:
                 # Continuous transcription mode
@@ -133,7 +139,8 @@ def main():
                         output_file=MLXW_OUTPUT_FILENAME,
                         use_kokoro=args.kokoro,
                         use_llm=args.llm,
-                        chat_handler=chat_handler
+                        chat_handler=chat_handler,
+                        stream_to_speakers=args.chat_voice
                     ):
                         break
                     logging.info("Press Enter to start listening again...")

@@ -48,7 +48,8 @@ def handle_transcription(
     output_file: str = None,
     use_kokoro: bool = False,
     use_llm: bool = False,
-    chat_handler: Optional[ChatHandler] = None
+    chat_handler: Optional[ChatHandler] = None,
+    stream_to_speakers: bool = False
 ) -> bool:
     """
     Handle a single transcription cycle.
@@ -61,6 +62,7 @@ def handle_transcription(
         use_kokoro: Whether to convert transcription to speech using Kokoro
         use_llm: Whether to process transcription with LLM
         chat_handler: Optional chat handler for chat mode
+        stream_to_speakers: Whether to stream chat responses to speakers
         
     Returns:
         bool: False if exit command detected, True otherwise
@@ -95,7 +97,8 @@ def handle_transcription(
     if chat_handler:
         continue_chat, response = chat_handler.process_message(
             text,
-            use_kokoro=use_kokoro
+            use_kokoro=use_kokoro,
+            stream_to_speakers=stream_to_speakers
         )
         if response:
             logging.info(f"Chat response: {response}")

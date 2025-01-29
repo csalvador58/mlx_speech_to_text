@@ -9,7 +9,7 @@ from typing import Optional, Tuple
 
 from speech_to_text.chat.chat_history import ChatHistory
 from speech_to_text.llm.mlxw_to_llm import MLXWToLLM
-from speech_to_text.kokoro import KokoroHandler
+from speech_to_text.kokoro.mlxw_to_kokoro import KokoroHandler
 
 class ChatHandler:
     """Orchestrates chat interactions between components."""
@@ -23,14 +23,16 @@ class ChatHandler:
     def process_message(
         self,
         text: str,
-        use_kokoro: bool = False
+        use_kokoro: bool = False,
+        stream_to_speakers: bool = False
     ) -> Tuple[bool, Optional[str]]:
         """
         Process a new chat message.
         
         Args:
             text: Text message to process
-            use_kokoro: Whether to convert response to speech
+            use_kokoro: Whether to convert response to speech file
+            stream_to_speakers: Whether to stream response to speakers
             
         Returns:
             Tuple[bool, Optional[str]]:
@@ -65,13 +67,19 @@ class ChatHandler:
                 return True, None
             
             # Handle text-to-speech if enabled
-            if use_kokoro:
+            if use_kokoro or stream_to_speakers:
                 try:
-                    output_path = self.kokoro_handler.convert_text_to_speech(response_text)
-                    if output_path:
-                        logging.info(f"Chat response converted to speech: {output_path}")
+                    if stream_to_speakers:
+                        logging.info("Streaming chat response to speakers")
+                        success = self.kokoro_handler.stream_text_to_speakers(response_text)
+                        if not success:
+                            logging.error("Failed to stream response to speakers")
+                    elif use_kokoro:
+                        output_path = self.kokoro_handler.convert_text_to_speech(response_text)
+                        if output_path:
+                            logging.info(f"Chat response converted to speech: {output_path}")
                 except Exception as e:
-                    logging.error(f"Error in Kokoro conversion: {e}")
+                    logging.error(f"Error in Kokoro conversion/streaming: {e}")
             
             return True, response_text
             
