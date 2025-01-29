@@ -5,3 +5,8 @@ Contains all configuration settings and constants.
 """
 
 from .settings import *
+from .text_optimizations import (
+    WORD_REPLACEMENTS,
+    PUNCTUATION_REPLACEMENTS,
+    GLOBAL_REPLACEMENTS,
+)

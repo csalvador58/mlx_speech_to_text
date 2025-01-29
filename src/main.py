@@ -67,6 +67,11 @@ def main():
         help="Enable Kokoro text-to-speech conversion and saves to audio file"
     )
     parser.add_argument(
+        "--optimize",
+        action="store_true",
+        help="Enable text optimization for voice synthesis"
+    )
+    parser.add_argument(
         "--llm",
         action="store_true",
         help="Enable LLM processing of transcribed text"
@@ -127,7 +132,8 @@ def main():
                     use_kokoro=args.kokoro,
                     use_llm=args.llm,
                     chat_handler=chat_handler,
-                    stream_to_speakers=args.chat_voice
+                    stream_to_speakers=args.chat_voice,
+                    optimize_voice=args.optimize
                 )
             else:
                 # Continuous transcription mode
@@ -140,7 +146,8 @@ def main():
                         use_kokoro=args.kokoro,
                         use_llm=args.llm,
                         chat_handler=chat_handler,
-                        stream_to_speakers=args.chat_voice
+                        stream_to_speakers=args.chat_voice,
+                        optimize_voice=args.optimize
                     ):
                         break
                     logging.info("Press Enter to start listening again...")

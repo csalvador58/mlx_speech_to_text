@@ -24,7 +24,8 @@ class ChatHandler:
         self,
         text: str,
         use_kokoro: bool = False,
-        stream_to_speakers: bool = False
+        stream_to_speakers: bool = False,
+        optimize_voice: bool = False  # Added optimize_voice parameter
     ) -> Tuple[bool, Optional[str]]:
         """
         Process a new chat message.
@@ -33,6 +34,7 @@ class ChatHandler:
             text: Text message to process
             use_kokoro: Whether to convert response to speech file
             stream_to_speakers: Whether to stream response to speakers
+            optimize_voice: Whether to apply voice optimization
             
         Returns:
             Tuple[bool, Optional[str]]:
@@ -71,11 +73,19 @@ class ChatHandler:
                 try:
                     if stream_to_speakers:
                         logging.info("Streaming chat response to speakers")
-                        success = self.kokoro_handler.stream_text_to_speakers(response_text)
+                        # Pass optimize_voice flag to streaming function
+                        success = self.kokoro_handler.stream_text_to_speakers(
+                            response_text,
+                            optimize=optimize_voice  # Pass the optimize flag
+                        )
                         if not success:
                             logging.error("Failed to stream response to speakers")
                     elif use_kokoro:
-                        output_path = self.kokoro_handler.convert_text_to_speech(response_text)
+                        # Pass optimize_voice flag to conversion function
+                        output_path = self.kokoro_handler.convert_text_to_speech(
+                            response_text,
+                            optimize=optimize_voice  # Pass the optimize flag
+                        )
                         if output_path:
                             logging.info(f"Chat response converted to speech: {output_path}")
                 except Exception as e:

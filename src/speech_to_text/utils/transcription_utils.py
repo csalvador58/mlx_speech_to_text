@@ -49,7 +49,8 @@ def handle_transcription(
     use_kokoro: bool = False,
     use_llm: bool = False,
     chat_handler: Optional[ChatHandler] = None,
-    stream_to_speakers: bool = False
+    stream_to_speakers: bool = False,
+    optimize_voice: bool = False
 ) -> bool:
     """
     Handle a single transcription cycle.
@@ -63,6 +64,7 @@ def handle_transcription(
         use_llm: Whether to process transcription with LLM
         chat_handler: Optional chat handler for chat mode
         stream_to_speakers: Whether to stream chat responses to speakers
+        optimize_voice: Whether to apply voice optimization to the text
         
     Returns:
         bool: False if exit command detected, True otherwise
@@ -98,7 +100,8 @@ def handle_transcription(
         continue_chat, response = chat_handler.process_message(
             text,
             use_kokoro=use_kokoro,
-            stream_to_speakers=stream_to_speakers
+            stream_to_speakers=stream_to_speakers,
+            optimize_voice=optimize_voice  # Pass the optimize flag to chat handler
         )
         if response:
             logging.info(f"Chat response: {response}")
@@ -137,7 +140,10 @@ def handle_transcription(
     if use_kokoro:
         try:
             kokoro_handler = KokoroHandler()
-            output_path = kokoro_handler.convert_text_to_speech(text)
+            output_path = kokoro_handler.convert_text_to_speech(
+                text,
+                optimize=optimize_voice  # Pass the optimize flag
+            )
             if output_path:
                 logging.info(f"Text-to-speech conversion saved to: {output_path}")
         except Exception as e:

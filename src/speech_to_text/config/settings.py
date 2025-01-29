@@ -32,7 +32,7 @@ def get_env_int(key: str, default: int) -> int:
 
 # Logging Settings
 LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(levelname)s - %(message)s')
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+LOG_LEVEL = 'DEBUG' # INFO | DEBUG
 
 # Audio Recording Settings
 AUDIO_FORMAT = pyaudio.paInt16
@@ -42,7 +42,7 @@ CHUNK_SIZE = 1024
 SILENCE_CHUNKS = 50
 
 # Default thresholds and calibration settings
-DEFAULT_SILENCE_THRESHOLD = 500
+DEFAULT_SILENCE_THRESHOLD = 250
 CALIBRATION_FRAMES = 30
 CALIBRATION_BUFFER = 200
 
