@@ -32,5 +32,3 @@ def setup_logging() -> None:
         
         # Add handler to logger
         logger.addHandler(console_handler)
-    
-    logger.info("Logging configured successfully")

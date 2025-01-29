@@ -1,4 +1,4 @@
-# File: main.py
+# File: src/main.py
 """
 Main entry point for the speech-to-text application.
 Handles command line arguments and orchestrates the transcription process.
@@ -8,18 +8,56 @@ import argparse
 import logging
 import os
 import pyperclip
+from pathlib import Path
 
 from speech_to_text.audio.recorder import AudioRecorder
 from speech_to_text.transcriber.whisper import WhisperTranscriber
 from speech_to_text.utils.logging import setup_logging
 from speech_to_text.kokoro import KokoroHandler
-from speech_to_text.config.settings import MLXW_OUTPUT_FILENAME
+from speech_to_text.llm import MLXWToLLM
+from speech_to_text.config.settings import (
+    MLXW_OUTPUT_FILENAME,
+    OUTPUT_DIR,
+    LLM_OUTPUT_FILENAME,
+    KOKORO_OUTPUT_FILENAME
+)
 
-def save_transcription(text: str, output_file: str) -> None:
-    """Save transcription to a file."""
+def verify_output_directory() -> None:
+    """Verify and create output directory if it doesn't exist."""
+    try:
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        logging.info(f"Output directory verified/created: {OUTPUT_DIR}")
+        
+        # Test write permissions
+        test_file = os.path.join(OUTPUT_DIR, 'test_write.txt')
+        try:
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            logging.info("Output directory is writable")
+        except Exception as e:
+            logging.error(f"Output directory is not writable: {e}")
+            
+    except Exception as e:
+        logging.error(f"Error creating output directory: {e}")
+        raise
+
+def save_transcription(text: str, output_file: str | None) -> None:
+    """
+    Save transcription to a file.
+    
+    Args:
+        text: Text content to save
+        output_file: File path to save to. If None or empty, no save is performed.
+    """
+    if not output_file:
+        return
+        
     try:
         # Ensure output directory exists
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        directory = os.path.dirname(output_file)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
         
         with open(output_file, 'w') as f:
             f.write(text)
@@ -32,7 +70,8 @@ def handle_transcription(
     transcriber: WhisperTranscriber,
     copy_to_clipboard: bool = False,
     output_file: str = None,
-    use_kokoro: bool = False
+    use_kokoro: bool = False,
+    use_llm: bool = False,
 ) -> bool:
     """
     Handle a single transcription cycle.
@@ -43,6 +82,7 @@ def handle_transcription(
         copy_to_clipboard: Whether to copy transcription to clipboard
         output_file: File to save transcription to
         use_kokoro: Whether to convert transcription to speech using Kokoro
+        use_llm: Whether to process transcription with LLM
         
     Returns:
         bool: False if exit command detected, True otherwise
@@ -83,14 +123,26 @@ def handle_transcription(
             logging.info("Exit command received")
             return False
 
-    if text and use_kokoro:
-        try:
-            kokoro_handler = KokoroHandler()
-            output_path = kokoro_handler.convert_text_to_speech(text)
-            if output_path:
-                logging.info(f"Text-to-speech conversion saved to: {output_path}")
-        except Exception as e:
-            logging.error(f"Error in Kokoro conversion: {e}")
+        # Handle LLM processing
+        if use_llm:
+            try:
+                llm_handler = MLXWToLLM()
+                llm_response = llm_handler.process_text(text)
+                if llm_response:
+                    logging.info("LLM processing completed successfully")
+                    save_transcription(llm_response, LLM_OUTPUT_FILENAME)
+            except Exception as e:
+                logging.error(f"Error in LLM processing: {e}")
+
+        # Handle Kokoro conversion
+        if use_kokoro:
+            try:
+                kokoro_handler = KokoroHandler()
+                output_path = kokoro_handler.convert_text_to_speech(text)
+                if output_path:
+                    logging.info(f"Text-to-speech conversion saved to: {output_path}")
+            except Exception as e:
+                logging.error(f"Error in Kokoro conversion: {e}")
 
     return True
 
@@ -119,10 +171,20 @@ def main():
         action="store_true",
         help="Enable Kokoro text-to-speech conversion"
     )
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        help="Enable LLM processing of transcribed text"
+    )
     args = parser.parse_args()
 
     # Set up logging
     setup_logging()
+
+    # Verify output directory at startup
+    logging.info("=== Application Initialization ===")
+    logging.info(f"Current working directory: {os.getcwd()}")
+    verify_output_directory()
 
     try:
         with AudioRecorder() as recorder:
@@ -139,7 +201,8 @@ def main():
                     transcriber,
                     copy_to_clipboard=args.copy,
                     output_file=args.output_file,
-                    use_kokoro=args.kokoro
+                    use_kokoro=args.kokoro,
+                    use_llm=args.llm
                 )
             else:
                 # Continuous transcription mode
@@ -148,8 +211,9 @@ def main():
                         recorder,
                         transcriber,
                         copy_to_clipboard=args.copy,
-                        output_file=f"{MLXW_OUTPUT_FILENAME}",
-                        use_kokoro=args.kokoro
+                        output_file=MLXW_OUTPUT_FILENAME,
+                        use_kokoro=args.kokoro,
+                        use_llm=args.llm
                     ):
                         break
                     logging.info("Press Enter to start listening again...")
