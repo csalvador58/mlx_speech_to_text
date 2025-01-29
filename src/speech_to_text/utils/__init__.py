@@ -5,5 +5,13 @@ Contains helper functions and logging utilities.
 """
 
 from .logging import setup_logging
+from .transcription_utils import (
+    handle_transcription,
+    save_transcription
+)
 
-__all__ = ["setup_logging"]
+__all__ = [
+    "setup_logging",
+    "handle_transcription",
+    "save_transcription"
+]

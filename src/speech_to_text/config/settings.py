@@ -71,6 +71,9 @@ LLM_API_KEY = os.getenv('LLM_API_KEY', 'lm-studio')
 LLM_MODEL = os.getenv('LLM_MODEL', 'qwen2.5-14b-instruct-1m@q8_0')
 LLM_OUTPUT_FILENAME = f"{OUTPUT_DIR}/llm_response.txt"
 
+# Chat History Settings
+CHAT_HISTORY_DIR = f"{OUTPUT_DIR}/chat_history"
+
 print("\n=== Path Configuration ===")
 print(f"Output Directory: {OUTPUT_DIR}")
 

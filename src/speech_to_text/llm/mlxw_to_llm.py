@@ -7,7 +7,7 @@ Implements a simpler request structure matching direct API calls.
 import logging
 import os
 import requests
-from typing import Optional
+from typing import Optional, List, Dict, Any, Tuple
 
 from speech_to_text.config.settings import (
     LLM_BASE_URL,
@@ -122,3 +122,72 @@ class MLXWToLLM:
         except Exception as e:
             logging.error(f"Error during LLM processing: {e}")
             return None
+
+    def process_chat(
+        self,
+        text: str,
+        message_history: List[Dict[str, str]]
+    ) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+        """
+        Process a chat message with conversation history.
+        
+        Args:
+            text: Current message to process
+            message_history: List of previous messages in the conversation
+            
+        Returns:
+            Tuple[Optional[str], Optional[Dict[str, Any]]]:
+                - Response text if successful, None otherwise
+                - Complete LLM response object if successful, None otherwise
+        """
+        if not text:
+            logging.error("No text provided for chat processing")
+            return None, None
+            
+        try:
+            # Combine message history with current message
+            messages = message_history.copy()
+            messages.append({"role": "user", "content": text})
+            
+            # Prepare request payload
+            payload = {
+                "model": LLM_MODEL,
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": -1,
+                "stream": False
+            }
+            
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            # Log request details
+            logging.debug(f"Making chat request to LLM API - URL: {LLM_BASE_URL}/chat/completions")
+            logging.debug(f"Chat history length: {len(message_history)}")
+            
+            # Make request to LLM API
+            response = requests.post(
+                f"{LLM_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload
+            )
+            
+            # Check if request was successful
+            response.raise_for_status()
+            
+            # Parse response
+            result = response.json()
+            response_text = result["choices"][0]["message"]["content"]
+            
+            # Save response to file
+            self._save_response(response_text)
+            
+            return response_text, result
+            
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error during chat API request: {e}")
+            return None, None
+        except Exception as e:
+            logging.error(f"Error during chat processing: {e}")
+            return None, None
