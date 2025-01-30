@@ -58,11 +58,15 @@ WORD_TIMESTAMPS = False
 MLXW_OUTPUT_FILENAME = f"{OUTPUT_DIR}/transcription.txt"
 
 # Kokoro Text-to-Speech Settings
+# Available voices: 
+#   af, af_bella, af_irulan, af_nicole, af_sarah, af_sky, 
+#   am_adam, am_michael, 
+#   bf_emma, bf_isabella, bm_george, bm_lewis
 KOKORO_BASE_URL = os.getenv('KOKORO_BASE_URL', 'http://localhost:8880/v1')
 KOKORO_API_KEY = os.getenv('KOKORO_API_KEY', 'not-needed')
 KOKORO_MODEL = os.getenv('KOKORO_MODEL', 'kokoro')
-KOKORO_VOICE = os.getenv('KOKORO_VOICE', 'af')
-KOKORO_SPEED = 1.1
+KOKORO_VOICE = os.getenv('KOKORO_VOICE', 'af_bella')
+KOKORO_SPEED = os.getenv('KOKORO_SPEED', 1.0)
 KOKORO_RESPONSE_FORMAT = "mp3"
 KOKORO_OUTPUT_FILENAME = f"{OUTPUT_DIR}/mlxw_to_kokoro_output.mp3"
 
@@ -82,3 +86,8 @@ print("\n=== Output File Paths ===")
 print(f"MLXW Output: {MLXW_OUTPUT_FILENAME}")
 print(f"Kokoro Output: {KOKORO_OUTPUT_FILENAME}")
 print(f"LLM Output: {LLM_OUTPUT_FILENAME}\n")
+
+print("\n=== Models ===")
+print(f"Whisper: {MODEL_NAME}")
+print(f"Kokoro: {KOKORO_MODEL} | {KOKORO_VOICE} | {KOKORO_SPEED}")
+print(f"LMStudio: {LLM_MODEL}\n\n")

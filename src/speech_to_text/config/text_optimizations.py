@@ -23,6 +23,8 @@ def get_default_abbreviations() -> Dict[str, str]:
 
 def get_default_char_replacements() -> Dict[str, str]:
     return {
+        "<|START_RESPONSE|>": "",  # Manually remove tokens
+        "<|END_RESPONSE|>": "",
         ".": "...",  # Extend pause
         ":": ",",    # Natural pause
         ";": ",",    # Natural pause

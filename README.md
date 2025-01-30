@@ -1,6 +1,6 @@
-# Speech to Text Transcription Tool
+# MLX Speech to Text Tool
 
-A comprehensive speech-to-text platform that combines real-time transcription with LLM processing, chat capabilities, and text-to-speech conversion.
+A comprehensive speech-to-text platform that combines real-time transcription with LLM processing, chat capabilities, and text-to-speech conversion. Uses [MLX-Whisper](https://github.com/ml-explore), [Kokoro](https://github.com/remsky/Kokoro-FastAPI), and [LMStudio](https://lmstudio.ai).
 
 ## Features
 
@@ -12,42 +12,49 @@ A comprehensive speech-to-text platform that combines real-time transcription wi
 - Multiple output options (clipboard, file, speakers)
 - Automatic silence detection and background noise calibration
 
-## Quick Start
+## Requirements:
+
+Run the following apps to access API endpoints:
+- [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) - Text to Speech (Default: http://localhost:8880/v1)
+- [LMStudio](https://lmstudio.ai) - LLM Provider (Default: http://localhost:1234/v1)
+
+Whisper model:
+- I recommend `mlx-community/whisper-large-v3-mlx` , default is set to `mlx-community/whisper-tiny-mlx-q4`
+    - See a list of mlx-community uploaded models on [Hugging Face](https://huggingface.co/collections/mlx-community/whisper-663256f9964fbb1177db93dc)
+
+## Setup
+
+#### App
+1. Clone the repository
+2. Setup the development environment:
+
 
 ```bash
+# Setup Whisper model, Kokoro, and LMStudio settings
+cp .env.example .env
+```
+- Set up the base urls of Kokoro and LMStudio in your .env file
+
+```bash
+
 # Create and activate virtual environment
 uv venv
 source .venv/bin/activate
 
 # Install dependencies and set up development environment
 uv sync
-
-# Run with basic transcription and clipboard support
-./speech_to_text.sh
 ```
-
-## Setup
-
-If you're developing the project:
-
-1. Clone the repository
-2. Make sure you have Python 3.10.16 installed
-3. Setup the development environment:
-```bash
-uv venv
-source .venv/bin/activate
-uv sync
-```
-
-To update dependencies:
-1. Make changes to `pyproject.toml`
-2. Run `uv sync` to update your environment
 
 ## Usage
 
 ### Using the Shell Script
 
-Make script executable, then run with clipboard support enabled:
+Make script executable. *(Current script runs the clipboard mode, adjust for your needs)*:
+- Example uses: 
+    - I run the script instance for the speech to clipboard feature. I use Apple shortcuts with bind keys to send the `Enter` command to enable listening.
+    - I run another app instance to Voice LLM Chat.
+
+    *Tip: Using the "--optimize" often times worked better with most models. Larger models don't really need it.*
 
 ```bash
 chmod +x speech_to_text.sh
@@ -87,6 +94,38 @@ uv run src/main.py --llm                 # Enable LLM processing
 - `--kokoro`: Convert transcribed text to speech
 - `--llm`: Process transcribed text through LLM
 - `--optimize`: Apply voice optimization for better speech synthesis
+
+## Manual Speech Optimizations
+Adjust in [text_optimization.py](src/speech_to_text/config/text_optimizations.py) file. Use to enhance word emphasis or even correct name pronunciations.
+
+```python
+def get_default_abbreviations() -> Dict[str, str]:
+    return {
+        "api": "A P I",
+        "url": "U R L",
+        "sql": "S Q L",
+        "html": "H T M L",
+        "css": "C S S",
+        "js": "JavaScript",
+        "jwt": "J W T",
+        "ui": "U I",
+        "ux": "U X",
+    }
+
+def get_default_char_replacements() -> Dict[str, str]:
+    return {
+        "<|START_RESPONSE|>": "",  # Manually remove tokens
+        "<|END_RESPONSE|>": "",
+        ".": "...",  # Extend pause
+        ":": ",",    # Natural pause
+        ";": ",",    # Natural pause
+        "–": " ",    # Space for readability
+        "—": " ",    # Space for readability
+        "|": ",",    # Natural pause
+        "•": ",",    # Natural pause for bullets
+    }
+```
+
 
 ## Project Structure
 
@@ -149,20 +188,6 @@ The application stores different types of data in the following locations:
 - Format: Based on `KOKORO_RESPONSE_FORMAT` setting
 - Contains: Generated speech audio files (when not streaming)
 
-## API Configuration
-
-The application requires configuration for LLM and Kokoro services. Create a configuration file with your API settings:
-
-```python
-# config/settings.py
-LLM_BASE_URL = "your_llm_api_url"
-LLM_MODEL = "your_model"
-
-KOKORO_BASE_URL = "your_kokoro_api_url"
-KOKORO_API_KEY = "your_api_key"
-KOKORO_MODEL = "your_model"
-KOKORO_VOICE = "your_voice"
-```
 
 ## 
-This project is based on the article ["Real-time Speech-to-Text on macOS with MLX Whisper (with copy to pasteboard capabilities)"](https://maeda.pm/2024/11/10/real-time-speech-to-text-on-macos-with-mlx-whisper-with-copy-to-pasteboard-capabilities/) by Maeda.
+This project expanded on the article ["Real-time Speech-to-Text on macOS with MLX Whisper (with copy to pasteboard capabilities)"](https://maeda.pm/2024/11/10/real-time-speech-to-text-on-macos-with-mlx-whisper-with-copy-to-pasteboard-capabilities/) by Maeda.
