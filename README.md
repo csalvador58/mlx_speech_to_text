@@ -19,12 +19,12 @@ Run the following apps to access API endpoints:
 - [LMStudio](https://lmstudio.ai) - LLM Provider (Default: http://localhost:1234/v1)
 
 Whisper model:
-- I recommend `mlx-community/whisper-large-v3-mlx` , default is set to `mlx-community/whisper-tiny-mlx-q4`
+- I recommend `mlx-community/whisper-large-v3-mlx`, default is set to `mlx-community/whisper-tiny-mlx-q4`
+- ***Note***: Setting the whisper model with only the name in your .env file will start a new HTTPS connection with hugging face to check for the model at each launch. Set the variable with the model's full path to avoid this.
     - See a list of mlx-community uploaded models on [Hugging Face](https://huggingface.co/collections/mlx-community/whisper-663256f9964fbb1177db93dc)
 
 ## Setup
 
-#### App
 1. Clone the repository
 2. Setup the development environment:
 
@@ -50,11 +50,7 @@ uv sync
 ### Using the Shell Script
 
 Make script executable. *(Current script runs the clipboard mode, adjust for your needs)*:
-- Example uses: 
-    - I run the script instance for the speech to clipboard feature. I use Apple shortcuts with bind keys to send the `Enter` command to enable listening.
-    - I run another app instance to Voice LLM Chat.
 
-    *Tip: Using the "--optimize" often times worked better with most models. Larger models don't really need it.*
 
 ```bash
 chmod +x speech_to_text.sh
@@ -65,22 +61,33 @@ chmod +x speech_to_text.sh
 
 The application supports various modes and features:
 
+- Example uses: 
+    - I run the script instance for the speech to clipboard feature. I use Apple shortcuts to bind keys to send the `Enter` command to enable listening.
+        - ```uv run src/main.py --copy```
+    - I'll also run another app instance to for LLM Chat with voice using "--chat-voice".
+        - ```uv run src/main.py --chat-voice --optimize```
+
+    *Tip: Using the "--optimize" flag often works better with most models. Larger models don't really need it.*
+
 ```bash
 # Basic Modes
-uv run src/main.py --single     # Single transcription mode
-uv run src/main.py             # Continuous mode
-uv run src/main.py --copy      # With clipboard support
+uv run src/main.py --single    # Single Speech to Text
+uv run src/main.py             # Continuous Speech to Text
+uv run src/main.py --copy      # Enable text to clipboard
 
 # Output Options
 uv run src/main.py --output-file transcript.txt  # Save to file
 
 # Features
-uv run src/main.py --chat                # Interactive chat to text mode
-uv run src/main.py --chat-voice          # Chat with voice responses
-uv run src/main.py --chat-id <ID>        # Continue existing chat session
-uv run src/main.py --kokoro              # Enable text-to-speech
-uv run src/main.py --optimize            # Enable voice optimization
-uv run src/main.py --llm                 # Enable LLM processing
+uv run src/main.py --chat             # Enable LLM speech to text mode
+uv run src/main.py --chat-voice       # Enable LLM voice mode
+uv run src/main.py --chat-id <ID>     # Continue existing chat session
+uv run src/main.py --kokoro           # Enable Speech to Voice
+uv run src/main.py --llm              # Enable LLM voice-text chat
+                                
+uv run src/main.py --optimize         # Enable voice optimizations
+
+#  See /src/.cache directory for chat history, transriptions, and audio files.
 ```
 
 ### Command Line Options
@@ -166,7 +173,7 @@ Dependencies are managed through `pyproject.toml` and `uv.lock`. All dependencie
 
 ## Storage Locations
 
-The application stores different types of data in the following locations:
+The application stores all file in ```src/.cache```:
 
 ### Chat History
 - Location: Configured via `CHAT_HISTORY_DIR` in settings
