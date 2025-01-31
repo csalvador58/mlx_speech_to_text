@@ -84,56 +84,17 @@ def handle_transcription(
         logging.error("Failed to process audio frames")
         return True
 
-    # Perform transcription
-    def generate_large_audio_data(duration_sec: int = 60, sample_rate: int = 16000) -> np.ndarray:
-        """
-        Generate a large NumPy array simulating audio data.
-
-        Args:
-            duration_sec: Length of the audio in seconds.
-            sample_rate: Sampling rate (default 16kHz for Whisper).
-
-        Returns:
-            A NumPy array simulating raw PCM audio.
-        """
-        total_samples = duration_sec * sample_rate  # Total number of samples
-
-        simulated_audio = np.random.randint(
-            -32768, 32767, total_samples, dtype=np.int16
-        )  # Simulating real PCM audio
-
-        # Normalize to float32 range (-1 to 1), as Whisper expects normalized audio
-        normalized_audio = simulated_audio.astype(np.float32) / 32768.0
-
-        return normalized_audio
-
-
-    # Example: Generate 5 minutes (300 seconds) of synthetic audio
-    large_audio_data_np = generate_large_audio_data(duration_sec=300, sample_rate=16000)
-    print(f"Generated synthetic audio data of shape: {large_audio_data_np.shape}")
-
-    # Convert to an MLX array with MLX dtype
-    large_audio_data_mx = mx.array(large_audio_data_np)
-    
+    # Perform transcription    
     # Start timing
-    print("Start timer")
+    print("Start timer -audio")
     start_time = time.time()
-
-    result = transcriber.transcribe_audio(large_audio_data_mx)
-
-    # End timing and print duration
+    
+    result = transcriber.transcribe_audio(audio_data)
+     # End timing and print duration
     end_time = time.time()
     execution_time = end_time - start_time
     logging.debug(f"transcribe_audio completed in {execution_time:.6f} seconds")
-
-    if result:
-        print("Transcription successful!")
-        print(result["text"][:500])  # Print first 500 characters
-    else:
-        print("Transcription failed!")
-
     
-    result = transcriber.transcribe_audio(audio_data)
     if result is None:
         logging.error("Transcription failed")
         return True
