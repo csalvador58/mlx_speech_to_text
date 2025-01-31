@@ -11,6 +11,7 @@ A comprehensive speech-to-text platform that combines real-time transcription wi
 - Voice optimization for improved speech synthesis
 - Multiple output options (clipboard, file, speakers)
 - Automatic silence detection and background noise calibration
+- Document analysis and chat integration
 
 ## Requirements:
 
@@ -81,11 +82,12 @@ uv run src/main.py --output-file transcript.txt  # Save to file
 # Features
 uv run src/main.py --chat             # Enable LLM speech to text mode
 uv run src/main.py --chat-voice       # Enable LLM voice mode
-uv run src/main.py --chat-id <ID>     # Continue existing chat session
+uv run src/main.py <...> --chat-id <ID>     # Continue existing chat session
 uv run src/main.py --kokoro           # Enable Speech to Voice
 uv run src/main.py --llm              # Enable LLM voice-text chat
                                 
-uv run src/main.py --optimize         # Enable voice optimizations
+uv run src/main.py <...> --optimize                  # Enable voice optimizations
+uv run src/main.py <...> --doc <path to text file>   # Enable appending doc text to chat
 
 #  See /src/.cache directory for chat history, transriptions, and audio files.
 ```
@@ -101,6 +103,8 @@ uv run src/main.py --optimize         # Enable voice optimizations
 - `--kokoro`: Convert transcribed text to speech
 - `--llm`: Process transcribed text through LLM
 - `--optimize`: Apply voice optimization for better speech synthesis
+- `--doc PATH`: Analyze a text document and discuss it in chat mode (supports ~ for home directory)
+
 
 ## Manual Speech Optimizations
 Adjust in [text_optimization.py](src/speech_to_text/config/text_optimizations.py) file. Use to enhance word emphasis or even correct name pronunciations.
