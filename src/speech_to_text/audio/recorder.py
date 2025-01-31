@@ -10,6 +10,7 @@ import numpy as np
 import mlx.core as mx
 import pyaudio
 from typing import Optional, List, Tuple
+import time
 
 from speech_to_text.config.settings import (
     AUDIO_FORMAT,
@@ -73,6 +74,10 @@ class AudioRecorder:
             float: Calibrated silence threshold value
         """
         logging.info("Calibrating silence threshold...")
+        
+        # Start timing
+        start_time = time.time()
+    
         self.start_stream()
         
         try:
@@ -97,12 +102,17 @@ class AudioRecorder:
                 self.silence_threshold = DEFAULT_SILENCE_THRESHOLD
                 return self.silence_threshold
             
-            # Convert list of tensors to a single MLX tensor using mx.stack()
             background_tensor = mx.array(background_frames)
                 
             # self.silence_threshold = np.mean(background_frames) + CALIBRATION_BUFFER
             self.silence_threshold = mx.mean(background_tensor).item() + CALIBRATION_BUFFER
             logging.info(f"Calibrated silence threshold: {self.silence_threshold}")
+            
+            # End timing and print duration
+            end_time = time.time()
+            execution_time = end_time - start_time
+            logging.debug(f"Calibration completed in {execution_time:.6f} seconds")
+            
             return self.silence_threshold
             
         except Exception as e:

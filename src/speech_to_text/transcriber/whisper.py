@@ -9,6 +9,7 @@ import numpy as np
 import mlx.core as mx
 from typing import Optional, Dict, Any
 from mlx_whisper.transcribe import transcribe
+import time
 
 from speech_to_text.config.settings import (
     MODEL_NAME,
@@ -46,6 +47,9 @@ class WhisperTranscriber:
         Returns:
             Optional[Dict[str, Any]]: Dictionary containing transcription results or None if failed
         """
+        # Start timing
+        start_time = time.time()
+        
         if audio_data is None or len(audio_data) == 0:
             logging.error("No audio data provided for transcription")
             return None
@@ -64,6 +68,11 @@ class WhisperTranscriber:
 
             if normalize_text:
                 result["text"] = self._normalize_text(result["text"])
+                
+            # End timing and print duration
+            end_time = time.time()
+            execution_time = end_time - start_time
+            logging.debug(f"transcribe_audio completed in {execution_time:.6f} seconds")
 
             return result
 
