@@ -14,7 +14,7 @@ print(f"\n=== Configuration Initialization ===")
 print(f"Looking for .env at: {env_path}")
 print(f".env file exists: {env_path.exists()}\n")
 
-load_dotenv(env_path)
+load_dotenv(env_path, override=True)
 
 def get_env_bool(key: str, default: bool) -> bool:
     """Convert environment string to boolean with fallback."""
@@ -32,7 +32,7 @@ def get_env_int(key: str, default: int) -> int:
 
 # Logging Settings
 LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(levelname)s - %(message)s')
-LOG_LEVEL = 'INFO' # INFO | DEBUG
+LOG_LEVEL = 'DEBUG' # INFO | DEBUG
 
 # Audio Recording Settings
 AUDIO_FORMAT = pyaudio.paInt16

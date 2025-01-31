@@ -6,6 +6,7 @@ Handles transcription of audio data using the MLX Whisper model.
 
 import logging
 import numpy as np
+import mlx.core as mx
 from typing import Optional, Dict, Any
 from mlx_whisper.transcribe import transcribe
 
@@ -30,7 +31,8 @@ class WhisperTranscriber:
 
     def transcribe_audio(
         self,
-        audio_data: np.ndarray,
+        # audio_data: np.ndarray,
+        audio_data: mx.array,
         normalize_text: bool = True,
     ) -> Optional[Dict[str, Any]]:
         """
@@ -38,6 +40,7 @@ class WhisperTranscriber:
         
         Args:
             audio_data: Normalized audio data as numpy array
+            audio_data: Normalized audio data as mlx array
             normalize_text: Whether to normalize the transcribed text
             
         Returns:
@@ -48,6 +51,9 @@ class WhisperTranscriber:
             return None
 
         try:
+            # Ensure audio_data is in float32 format (MLX-Whisper expects normalized input)
+            audio_data = audio_data.astype(mx.float32)
+            
             # Perform transcription using MLX Whisper
             result = transcribe(
                 audio_data,
