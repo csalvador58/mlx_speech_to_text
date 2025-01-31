@@ -99,7 +99,7 @@ class KokoroHandler:
             
         try:
             # Log the original text
-            logging.info(f"Voice text optimization is enabled: {optimize}")
+            logging.debug(f"Voice text optimization is enabled: {optimize}")
             logging.debug(f"Original text: {text}")
             
             if optimize:
@@ -136,7 +136,7 @@ class KokoroHandler:
             stream.close()
             audio.terminate()
             
-            logging.info("Successfully streamed text to speakers")
+            logging.debug("Successfully streamed text to speakers")
             return True
             
         except Exception as e:

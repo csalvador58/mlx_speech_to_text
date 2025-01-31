@@ -94,7 +94,8 @@ class ChatHandler:
             if use_kokoro or stream_to_speakers:
                 try:
                     if stream_to_speakers:
-                        logging.info("Streaming chat response to speakers")
+                        logging.info("Streaming chat response to speakers...")
+                        logging.info(f"{response_text}")
                         success = self.kokoro_handler.stream_text_to_speakers(
                             response_text,
                             optimize=optimize_voice

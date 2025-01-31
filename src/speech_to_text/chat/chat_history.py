@@ -86,7 +86,6 @@ class ChatHistory:
             bool: True if history was saved successfully, False otherwise
         """
         if not self.current_chat_id:
-            logging.error("No current chat ID set")
             return False
             
         try:
@@ -167,7 +166,6 @@ class ChatHistory:
             content: Content of the message
         """
         if not self.current_chat_id:
-            logging.error("No current chat ID set")
             return
             
         self.messages.append({

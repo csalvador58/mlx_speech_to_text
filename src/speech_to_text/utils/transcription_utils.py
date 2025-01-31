@@ -100,8 +100,6 @@ def handle_transcription(
             stream_to_speakers=stream_to_speakers,
             optimize_voice=optimize_voice
         )
-        if response:
-            logging.info(f"Chat response: {response}")
         return continue_chat
 
     # Handle clipboard copy
