@@ -5,7 +5,6 @@ Implements a simpler request structure matching direct API calls.
 """
 
 import logging
-import os
 import requests
 from typing import Optional, List, Dict, Any, Tuple
 
@@ -14,6 +13,10 @@ from speech_to_text.config.settings import (
     LLM_MODEL,
     LLM_OUTPUT_FILENAME,
     OUTPUT_DIR
+)
+from speech_to_text.utils.path_utils import (
+    ensure_directory,
+    safe_write_file
 )
 
 class MLXWToLLM:
@@ -25,13 +28,10 @@ class MLXWToLLM:
         
     def _ensure_output_directory(self) -> None:
         """Ensure the output directory exists."""
-        try:
-            os.makedirs(OUTPUT_DIR, exist_ok=True)
-            logging.debug(f"Output directory verified: {OUTPUT_DIR}")
-            logging.debug(f"LLM output file will be: {LLM_OUTPUT_FILENAME}")
-        except Exception as e:
-            logging.error(f"Error creating output directory: {e}")
-            raise
+        if not ensure_directory(OUTPUT_DIR):
+            raise RuntimeError(f"Failed to create/verify output directory: {OUTPUT_DIR}")
+        logging.debug(f"Output directory verified: {OUTPUT_DIR}")
+        logging.debug(f"LLM output file will be: {LLM_OUTPUT_FILENAME}")
 
     def _save_response(self, response_text: str) -> None:
         """
@@ -40,28 +40,41 @@ class MLXWToLLM:
         Args:
             response_text: Response text to save
         """
-        try:
-            logging.debug(f"Attempting to save response to: {LLM_OUTPUT_FILENAME}")
-            
-            # Verify the path
-            if not LLM_OUTPUT_FILENAME or LLM_OUTPUT_FILENAME.endswith('/'):
-                logging.error(f"Invalid LLM output filename: {LLM_OUTPUT_FILENAME}")
-                return
-                
-            # Ensure the directory exists
-            output_dir = os.path.dirname(LLM_OUTPUT_FILENAME)
-            os.makedirs(output_dir, exist_ok=True)
-
-            # Write the response
-            with open(LLM_OUTPUT_FILENAME, 'a', encoding='utf-8') as f:
-                f.write(f"\nResponse: {response_text}\n")
-                f.write("-" * 50 + "\n")
+        content = f"\nResponse: {response_text}\n{'-' * 50}\n"
+        if safe_write_file(content, LLM_OUTPUT_FILENAME, append=True):
             logging.info(f"Response saved to: {LLM_OUTPUT_FILENAME}")
-        except Exception as e:
-            logging.error(f"Error saving response to file: {e}")
-            logging.error(f"Attempted file path: {LLM_OUTPUT_FILENAME}")
-            logging.error(f"Output directory exists: {os.path.exists(output_dir)}")
-            logging.error(f"Output directory is writable: {os.access(output_dir, os.W_OK)}")
+        else:
+            logging.error(f"Failed to save response to: {LLM_OUTPUT_FILENAME}")
+
+    def _prepare_messages(self, current_text: str, message_history: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """
+        Prepare messages array for LLM request, ensuring system messages are positioned correctly.
+        
+        Args:
+            current_text: Current message to process
+            message_history: List of previous messages
+            
+        Returns:
+            List[Dict[str, str]]: Properly ordered messages for LLM request
+        """
+        # Extract system messages
+        system_messages = [msg for msg in message_history if msg.get('role') == 'system']
+        
+        # Extract conversation messages (non-system)
+        conversation = [msg for msg in message_history if msg.get('role') != 'system']
+        
+        # Combine in correct order: system messages first, then conversation, then current message
+        messages = []
+        messages.extend(system_messages)  # System messages always first
+        messages.extend(conversation)     # Previous conversation
+        messages.append({"role": "user", "content": current_text})  # Current message
+        
+        # Log message structure
+        logging.debug(f"Prepared messages structure:")
+        logging.debug(f"- System messages: {len(system_messages)}")
+        logging.debug(f"- Conversation messages: {len(conversation)}")
+        
+        return messages
 
     def process_text(self, text: str) -> Optional[str]:
         """
@@ -145,9 +158,8 @@ class MLXWToLLM:
             return None, None
             
         try:
-            # Combine message history with current message
-            messages = message_history.copy()
-            messages.append({"role": "user", "content": text})
+            # Prepare messages with correct ordering
+            messages = self._prepare_messages(text, message_history)
             
             # Prepare request payload
             payload = {

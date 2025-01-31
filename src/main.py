@@ -15,6 +15,11 @@ from speech_to_text.utils import (
     setup_logging,
     handle_transcription
 )
+from speech_to_text.utils.path_utils import (
+    ensure_directory,
+    validate_file_path,
+    safe_read_file
+)
 from speech_to_text.chat import ChatHandler
 from speech_to_text.config.settings import (
     MLXW_OUTPUT_FILENAME,
@@ -23,23 +28,31 @@ from speech_to_text.config.settings import (
 
 def verify_output_directory() -> None:
     """Verify and create output directory if it doesn't exist."""
-    try:
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        logging.info(f"Output directory verified/created: {OUTPUT_DIR}")
+    if not ensure_directory(OUTPUT_DIR):
+        raise RuntimeError(f"Failed to create/verify output directory: {OUTPUT_DIR}")
+    logging.info(f"Output directory verified/created: {OUTPUT_DIR}")
+
+def validate_doc_path(doc_path: str) -> bool:
+    """
+    Validate document path for analysis.
+    
+    Args:
+        doc_path: Path to document file
         
-        # Test write permissions
-        test_file = os.path.join(OUTPUT_DIR, 'test_write.txt')
-        try:
-            with open(test_file, 'w') as f:
-                f.write('test')
-            os.remove(test_file)
-            logging.info("Output directory is writable")
-        except Exception as e:
-            logging.error(f"Output directory is not writable: {e}")
-            
-    except Exception as e:
-        logging.error(f"Error creating output directory: {e}")
-        raise
+    Returns:
+        bool: True if document is valid and readable
+    """
+    content = safe_read_file(doc_path)
+    if not content:
+        return False
+        
+    # Preview document content
+    lines = content.splitlines()
+    preview_lines = lines[:10]
+    preview = '\n'.join(preview_lines)
+    logging.debug(f"Document preview (first 10 lines):\n{preview}\n...")
+    logging.info(f"Document validated: {validate_file_path(doc_path)}")
+    return True
 
 def main():
     """Main function to run the speech-to-text application."""
@@ -91,6 +104,11 @@ def main():
         type=str,
         help="Continue an existing chat session"
     )
+    parser.add_argument(
+        "--doc",
+        type=str,
+        help="Path to text file to analyze in chat mode (supports ~ for home directory)"
+    )
     args = parser.parse_args()
 
     # Set up logging
@@ -100,6 +118,10 @@ def main():
     logging.info("=== Application Initialization ===")
     logging.info(f"Current working directory: {os.getcwd()}")
     verify_output_directory()
+
+    # Validate document if provided
+    if args.doc and not validate_doc_path(args.doc):
+        return
 
     # Initialize chat handler if needed
     chat_handler = None
@@ -111,7 +133,7 @@ def main():
                 return
             logging.info(f"Resumed chat session: {args.chat_id}")
         else:
-            chat_handler.start_new_chat()
+            chat_handler.start_new_chat(doc_path=args.doc)
             logging.info("Started new chat session")
 
     try:

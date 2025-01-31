@@ -10,6 +10,7 @@ from typing import Optional, Tuple
 from speech_to_text.chat.chat_history import ChatHistory
 from speech_to_text.llm.mlxw_to_llm import MLXWToLLM
 from speech_to_text.kokoro.mlxw_to_kokoro import KokoroHandler
+from speech_to_text.utils.path_utils import safe_read_file
 
 class ChatHandler:
     """Orchestrates chat interactions between components."""
@@ -19,13 +20,34 @@ class ChatHandler:
         self.chat_history = ChatHistory()
         self.llm_handler = MLXWToLLM()
         self.kokoro_handler = KokoroHandler()
+
+    def _load_document(self, doc_path: str) -> Optional[str]:
+        """
+        Load document content for analysis.
+        
+        Args:
+            doc_path: Path to the document
+            
+        Returns:
+            Optional[str]: Document content if successful, None otherwise
+        """
+        content = safe_read_file(doc_path)
+        if content:
+            # Log document preview
+            lines = content.splitlines()
+            preview_lines = lines[:10]
+            preview = '\n'.join(preview_lines)
+            logging.debug(f"Loaded document content preview:\n{preview}\n...")
+            logging.debug(f"Total lines in document: {len(lines)}")
+            logging.info("Document loaded successfully")
+        return content
         
     def process_message(
         self,
         text: str,
         use_kokoro: bool = False,
         stream_to_speakers: bool = False,
-        optimize_voice: bool = False  # Added optimize_voice parameter
+        optimize_voice: bool = False
     ) -> Tuple[bool, Optional[str]]:
         """
         Process a new chat message.
@@ -60,7 +82,7 @@ class ChatHandler:
                     self.chat_history.add_message("assistant", response_text)
             else:
                 # New chat - initialize history from response
-                response_text, llm_response = self.llm_handler.process_chat(text, [])
+                response_text, llm_response = self.llm_handler.process_chat(text, self.chat_history.messages)
                 if response_text and llm_response:
                     self.chat_history.initialize_from_llm_response(llm_response, text)
             
@@ -73,18 +95,16 @@ class ChatHandler:
                 try:
                     if stream_to_speakers:
                         logging.info("Streaming chat response to speakers")
-                        # Pass optimize_voice flag to streaming function
                         success = self.kokoro_handler.stream_text_to_speakers(
                             response_text,
-                            optimize=optimize_voice  # Pass the optimize flag
+                            optimize=optimize_voice
                         )
                         if not success:
                             logging.error("Failed to stream response to speakers")
                     elif use_kokoro:
-                        # Pass optimize_voice flag to conversion function
                         output_path = self.kokoro_handler.convert_text_to_speech(
                             response_text,
-                            optimize=optimize_voice  # Pass the optimize flag
+                            optimize=optimize_voice
                         )
                         if output_path:
                             logging.info(f"Chat response converted to speech: {output_path}")
@@ -97,10 +117,40 @@ class ChatHandler:
             logging.error(f"Error processing chat message: {e}")
             return True, None
             
-    def start_new_chat(self) -> None:
-        """Reset chat state for a new conversation."""
+    def start_new_chat(self, doc_path: Optional[str] = None) -> None:
+        """
+        Reset chat state for a new conversation.
+        
+        Args:
+            doc_path: Optional path to document file to initialize chat with
+        """
         self.chat_history = ChatHistory()
         logging.info("Started new chat session")
+        
+        if doc_path:
+            doc_content = self._load_document(doc_path)
+            if doc_content:
+                logging.debug("Adding document to chat history...")
+                # Create new chat history with system message
+                self.chat_history.messages = [{
+                    "role": "system",
+                    "content": f"<<START OF DOCUMENT>>\n{doc_content}\n<<END OF DOCUMENT>>"
+                }]
+                
+                # Save history to ensure it's persisted
+                self.chat_history.save_history()
+                
+                # Now send initial analysis request
+                logging.debug("Sending initial document analysis request...")
+                initial_prompt = (
+                    "Analyze this document thoroughly so we can have discussion about it. "
+                    "Make note of the titles, headers, and every section available."
+                )
+                success, response = self.process_message(initial_prompt)
+                if not success:
+                    logging.error("Failed to initialize chat with document context")
+                elif response:
+                    logging.info("Document analysis completed successfully")
         
     def load_existing_chat(self, chat_id: str) -> bool:
         """

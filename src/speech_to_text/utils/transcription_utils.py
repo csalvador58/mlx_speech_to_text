@@ -5,17 +5,17 @@ Provides reusable functions for saving and processing transcriptions.
 """
 
 import logging
-import os
 import time
-from typing import Optional, Dict, Any, Tuple, List
+from typing import Optional, Tuple
 
 from speech_to_text.audio.recorder import AudioRecorder
 from speech_to_text.transcriber.whisper import WhisperTranscriber
 from speech_to_text.chat import ChatHandler
 from speech_to_text.llm import MLXWToLLM
 from speech_to_text.kokoro import KokoroHandler
+from speech_to_text.utils.path_utils import safe_write_file
 
-def save_transcription(text: str, output_file: str | None) -> None:
+def save_transcription(text: str, output_file: Optional[str]) -> None:
     """
     Save transcription to a file.
     
@@ -23,30 +23,19 @@ def save_transcription(text: str, output_file: str | None) -> None:
         text: Text content to save
         output_file: File path to save to. If None or empty, no save is performed.
     """
-    if not output_file:
+    if not text or not output_file:
         return
         
-    try:
-        # Ensure output directory exists
-        directory = os.path.dirname(output_file)
-        if directory:
-            os.makedirs(directory, exist_ok=True)
-        
-        with open(output_file, 'w') as f:
-            f.write(text)
+    if safe_write_file(text, output_file):
         logging.info(f"Transcription saved to: {output_file}")
-    except Exception as e:
-        logging.error(f"Error saving transcription to file: {e}")
-        logging.debug(f"Output file path: {output_file}")
-        if directory:
-            logging.debug(f"Directory exists: {os.path.exists(directory)}")
-            logging.debug(f"Directory is writable: {os.access(directory, os.W_OK)}")
+    else:
+        logging.error(f"Failed to save transcription to: {output_file}")
 
 def handle_transcription(
     recorder: AudioRecorder,
     transcriber: WhisperTranscriber,
     copy_to_clipboard: bool = False,
-    output_file: str = None,
+    output_file: Optional[str] = None,
     use_kokoro: bool = False,
     use_llm: bool = False,
     chat_handler: Optional[ChatHandler] = None,
@@ -86,7 +75,7 @@ def handle_transcription(
     start_time = time.time()
     
     result = transcriber.transcribe_audio(audio_data)
-     # End timing and print duration
+    # End timing and print duration
     end_time = time.time()
     execution_time = end_time - start_time
     logging.debug(f"transcribe_audio completed in {execution_time:.6f} seconds")
@@ -109,7 +98,7 @@ def handle_transcription(
             text,
             use_kokoro=use_kokoro,
             stream_to_speakers=stream_to_speakers,
-            optimize_voice=optimize_voice  # Pass the optimize flag to chat handler
+            optimize_voice=optimize_voice
         )
         if response:
             logging.info(f"Chat response: {response}")
@@ -150,7 +139,7 @@ def handle_transcription(
             kokoro_handler = KokoroHandler()
             output_path = kokoro_handler.convert_text_to_speech(
                 text,
-                optimize=optimize_voice  # Pass the optimize flag
+                optimize=optimize_voice
             )
             if output_path:
                 logging.info(f"Text-to-speech conversion saved to: {output_path}")
