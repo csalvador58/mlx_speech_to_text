@@ -98,7 +98,7 @@ class AudioRecorder:
                 return self.silence_threshold
             
             # Convert list of tensors to a single MLX tensor using mx.stack()
-            background_tensor = mx.stack(background_frames)
+            background_tensor = mx.array(background_frames)
                 
             # self.silence_threshold = np.mean(background_frames) + CALIBRATION_BUFFER
             self.silence_threshold = mx.mean(background_tensor).item() + CALIBRATION_BUFFER
@@ -147,12 +147,10 @@ class AudioRecorder:
                     filled_length = int(progress * bar_length)
                     bar = "#" * filled_length + "-" * (bar_length - filled_length)
                     message = f"Silence delay [{bar}]"
-
                     # Clear the previous message by writing spaces equal to its length
                     sys.stdout.write(f"\r{' ' * last_message_length}\r")
                     sys.stdout.write(message)
                     sys.stdout.flush()
-
                     last_message_length = len(message)
                     
                     silent_chunks += 1

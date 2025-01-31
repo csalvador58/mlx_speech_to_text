@@ -32,7 +32,7 @@ def get_env_int(key: str, default: int) -> int:
 
 # Logging Settings
 LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(levelname)s - %(message)s')
-LOG_LEVEL = 'DEBUG' # INFO | DEBUG
+LOG_LEVEL = 'INFO' # INFO | DEBUG
 
 # Audio Recording Settings
 AUDIO_FORMAT = pyaudio.paInt16
