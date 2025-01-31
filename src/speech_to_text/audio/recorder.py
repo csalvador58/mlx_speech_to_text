@@ -86,21 +86,17 @@ class AudioRecorder:
                     logging.warning("Empty audio data received during calibration.")
                     continue
             
-                # audio_data = np.frombuffer(data, dtype=np.int16)
                 audio_data = mx.array(memoryview(data), dtype=mx.int16)
-                # background_frames.append(np.max(np.abs(audio_data)))
                 max_value = mx.max(mx.abs(audio_data)).item()
                 background_frames.append(max_value)
             
-            # Ensure we have valid calibration data before proceeding
+            # Ensure valid calibration data before proceeding
             if not background_frames:
                 logging.error("No valid background frames captured. Using default threshold.")
                 self.silence_threshold = DEFAULT_SILENCE_THRESHOLD
                 return self.silence_threshold
             
             background_tensor = mx.array(background_frames)
-                
-            # self.silence_threshold = np.mean(background_frames) + CALIBRATION_BUFFER
             self.silence_threshold = mx.mean(background_tensor).item() + CALIBRATION_BUFFER
             logging.info(f"Calibrated silence threshold: {self.silence_threshold}")
             
@@ -111,13 +107,12 @@ class AudioRecorder:
             self.silence_threshold = DEFAULT_SILENCE_THRESHOLD
             return self.silence_threshold
 
-    # def record_audio(self) -> Tuple[List[np.ndarray], bool]:
     def record_audio(self) -> Tuple[List[mx.array], bool]:
         """
         Record audio until silence is detected.
         
         Returns:
-            Tuple[List[np.ndarray], bool]: Tuple containing:
+            Tuple[List[mx.array], bool]: Tuple containing:
                 - List of recorded audio frames
                 - Boolean indicating if recording was successful
         """
@@ -129,17 +124,14 @@ class AudioRecorder:
         try:
             while True:
                 data = self.stream.read(CHUNK_SIZE, exception_on_overflow=False)
-                # Convert raw data properly
-                # audio_data = np.frombuffer(data, dtype=np.int16)
-                audio_data_np = np.frombuffer(data, dtype=np.int16)
-                audio_data = mx.array(audio_data_np, dtype=mx.int16)
+                # 'h' is the format code for int16, int16 required
+                audio_data = mx.array(memoryview(data).cast('h'), dtype=mx.int16) 
                 
                 # Get max absolute value
                 max_amplitude = mx.max(mx.abs(audio_data)).item()
                 logging.debug(f"Detected max amplitude: {max_amplitude}, Silence threshold: {self.silence_threshold}")
 
                 # Check if audio_data exceeds the silence threshold
-                # if np.max(np.abs(audio_data)) < self.silence_threshold:
                 if max_amplitude < self.silence_threshold:
 
                     # Create the status bar
@@ -148,7 +140,7 @@ class AudioRecorder:
                     filled_length = int(progress * bar_length)
                     bar = "#" * filled_length + "-" * (bar_length - filled_length)
                     message = f"Silence delay [{bar}]"
-                    # Clear the previous message by writing spaces equal to its length
+                    
                     sys.stdout.write(f"\r{' ' * last_message_length}\r")
                     sys.stdout.write(message)
                     sys.stdout.flush()
@@ -158,13 +150,12 @@ class AudioRecorder:
                 else:
                     silent_chunks = 0
 
-                # If we have enough silence chunks, consider it the end of speech
+                # Detect end of speech
                 if silent_chunks > SILENCE_CHUNKS:
                     break
 
                 frames.append(audio_data)
 
-            # Move to the next line after finishing
             sys.stdout.write("\n")
             sys.stdout.flush()
 
@@ -174,17 +165,14 @@ class AudioRecorder:
             logging.error(f"Error recording audio: {e}")
             return frames, False
 
-    # def process_audio_frames(self, frames: List[np.ndarray]) -> Optional[np.ndarray]:
     def process_audio_frames(self, frames: List[mx.array]) -> Optional[mx.array]:
         """
         Process recorded audio frames into a format suitable for transcription.
         
         Args:
-            frames: List of recorded audio frames
             frames: List of recorded audio frames (MLX arrays)
             
         Returns:
-            Optional[np.ndarray]: Processed audio data, normalized to float32
             Optional[mx.array]: Processed audio data, normalized to float32
         """
         if not frames:
@@ -195,7 +183,6 @@ class AudioRecorder:
             frames_tensor = mx.stack(frames) if len(frames) > 1 else frames[0]
         
             # Concatenate all audio data and normalize
-            # audio_data = np.concatenate(frames).astype(np.float32) / 32768.0
             audio_data = mx.concatenate(frames_tensor).astype(mx.float32) / 32768.0
             return audio_data
             

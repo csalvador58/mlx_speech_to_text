@@ -6,9 +6,7 @@ Provides reusable functions for saving and processing transcriptions.
 
 import logging
 import os
-import numpy as np
 import time
-import mlx.core as mx
 from typing import Optional, Dict, Any, Tuple, List
 
 from speech_to_text.audio.recorder import AudioRecorder
@@ -85,8 +83,6 @@ def handle_transcription(
         return True
 
     # Perform transcription    
-    # Start timing
-    print("Start timer -audio")
     start_time = time.time()
     
     result = transcriber.transcribe_audio(audio_data)

@@ -5,11 +5,9 @@ Handles transcription of audio data using the MLX Whisper model.
 """
 
 import logging
-import numpy as np
 import mlx.core as mx
 from typing import Optional, Dict, Any
 from mlx_whisper.transcribe import transcribe
-
 from speech_to_text.config.settings import (
     MODEL_NAME,
     VERBOSE,
@@ -22,7 +20,7 @@ class WhisperTranscriber:
     def __init__(self, model_name: str = MODEL_NAME):
         """
         Initialize the WhisperTranscriber.
-        
+
         Args:
             model_name: Name or path of the Whisper model to use
         """
@@ -31,7 +29,6 @@ class WhisperTranscriber:
 
     def transcribe_audio(
         self,
-        # audio_data: np.ndarray,
         audio_data: mx.array,
         normalize_text: bool = True,
     ) -> Optional[Dict[str, Any]]:
@@ -39,7 +36,6 @@ class WhisperTranscriber:
         Transcribe audio data using the Whisper model.
         
         Args:
-            audio_data: Normalized audio data as numpy array
             audio_data: Normalized audio data as mlx array
             normalize_text: Whether to normalize the transcribed text
             
