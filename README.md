@@ -175,9 +175,9 @@ Extended Features:
 
 Dependencies are managed through `pyproject.toml` and `uv.lock`. All dependencies are defined in the project's `pyproject.toml` file.
 
-## Storage Locations
+## Local Data
 
-The application stores all file in ```src/.cache```:
+The application stores all text and audio generated files in [src/.cache](src/.cache):
 
 ### Chat History
 - Location: Configured via `CHAT_HISTORY_DIR` in settings
@@ -199,6 +199,8 @@ The application stores all file in ```src/.cache```:
 - Format: Based on `KOKORO_RESPONSE_FORMAT` setting
 - Contains: Generated speech audio files (when not streaming)
 
+### (Optional) Add Apple Shortcut
+Set a shortcut to send ENTER cmd to first session in an iTerm window: [iCloud Link to Shortcut](https://www.icloud.com/shortcuts/014c924d6e53423a8d10aefb6625ca21)
 
 ## 
 This project expanded on the article ["Real-time Speech-to-Text on macOS with MLX Whisper (with copy to pasteboard capabilities)"](https://maeda.pm/2024/11/10/real-time-speech-to-text-on-macos-with-mlx-whisper-with-copy-to-pasteboard-capabilities/) by Maeda.
