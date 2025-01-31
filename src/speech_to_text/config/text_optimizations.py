@@ -10,6 +10,8 @@ import re
 def get_default_abbreviations() -> Dict[str, str]:
     return {
         # "api": "A P I",
+        "e.g.": "example given",
+        "i.e.": "in example",
         "url": "U R L",
         "sql": "S Q L",
         "html": "H T M L",

@@ -37,9 +37,9 @@ class ChatHandler:
             lines = content.splitlines()
             preview_lines = lines[:10]
             preview = '\n'.join(preview_lines)
-            logging.debug(f"Loaded document content preview:\n{preview}\n...")
-            logging.debug(f"Total lines in document: {len(lines)}")
-            logging.info("Document loaded successfully")
+            logging.info(f"Loaded document content preview:\n{preview}\n...")
+            logging.info(f"Total lines in document: {len(lines)}")
+            logging.info("Document loaded successfully, sending to LLM to analyze...")
         return content
         
     def process_message(
