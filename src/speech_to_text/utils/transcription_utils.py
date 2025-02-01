@@ -40,6 +40,7 @@ def handle_transcription(
     use_llm: bool = False,
     chat_handler: Optional[ChatHandler] = None,
     stream_to_speakers: bool = False,
+    save_to_file: bool = True,
     optimize_voice: bool = False
 ) -> bool:
     """
@@ -54,6 +55,7 @@ def handle_transcription(
         use_llm: Whether to process transcription with LLM
         chat_handler: Optional chat handler for chat mode
         stream_to_speakers: Whether to stream chat responses to speakers
+        save_to_file: Whether to save audio responses to file
         optimize_voice: Whether to apply voice optimization to the text
         
     Returns:
@@ -98,6 +100,7 @@ def handle_transcription(
             text,
             use_kokoro=use_kokoro,
             stream_to_speakers=stream_to_speakers,
+            save_to_file=save_to_file,
             optimize_voice=optimize_voice
         )
         return continue_chat

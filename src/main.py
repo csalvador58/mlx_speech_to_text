@@ -100,6 +100,11 @@ def main():
         help="Enable interactive chat mode with voice responses streamed to speakers"
     )
     parser.add_argument(
+        "--chat-voice-save",
+        action="store_true",
+        help="Enable interactive chat mode with voice responses streamed to speakers and saved to file"
+    )
+    parser.add_argument(
         "--chat-id",
         type=str,
         help="Continue an existing chat session"
@@ -125,7 +130,7 @@ def main():
 
     # Initialize chat handler if needed
     chat_handler = None
-    if args.chat or args.chat_voice:
+    if args.chat or args.chat_voice or args.chat_voice_save:
         chat_handler = ChatHandler()
         if args.chat_id:
             if not chat_handler.load_existing_chat(args.chat_id):
@@ -154,7 +159,8 @@ def main():
                     use_kokoro=args.kokoro,
                     use_llm=args.llm,
                     chat_handler=chat_handler,
-                    stream_to_speakers=args.chat_voice,
+                    stream_to_speakers=args.chat_voice or args.chat_voice_save,
+                    save_to_file=args.chat_voice_save,
                     optimize_voice=args.optimize
                 )
             else:
@@ -168,7 +174,8 @@ def main():
                         use_kokoro=args.kokoro,
                         use_llm=args.llm,
                         chat_handler=chat_handler,
-                        stream_to_speakers=args.chat_voice,
+                        stream_to_speakers=args.chat_voice or args.chat_voice_save,
+                        save_to_file=args.chat_voice_save,
                         optimize_voice=args.optimize
                     ):
                         break

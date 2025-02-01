@@ -98,16 +98,17 @@ class KokoroHandler:
             logging.error(f"Error during text-to-speech conversion: {e}")
             return None
 
-    def stream_text_to_speakers(self, text: str, optimize: bool = False) -> Optional[str]:
+    def stream_text_to_speakers(self, text: str, optimize: bool = False, save_to_file: bool = True) -> Optional[str]:
         """
-        Convert text to speech, stream to speakers, and save to file.
+        Convert text to speech and stream to speakers. Optionally save to file.
         
         Args:
             text: Text to convert to speech
             optimize: Whether to apply voice optimization to the text
+            save_to_file: Whether to save the audio to file after streaming
             
         Returns:
-            Optional[str]: Path to the saved audio file if successful, None otherwise
+            Optional[str]: Path to the saved audio file if saved, None otherwise
         """
         if not text:
             logging.error("No text provided for text-to-speech streaming")
@@ -133,7 +134,7 @@ class KokoroHandler:
             logging.debug(f"Making streaming request to Kokoro API - URL: {KOKORO_BASE_URL}/audio/speech")
             logging.debug(f"Request parameters - Model: {KOKORO_MODEL}, Voice: {KOKORO_VOICE}, Format: pcm")
             
-            # First stream to speakers
+            # Stream to speakers
             with self.client.audio.speech.with_streaming_response.create(
                 model=KOKORO_MODEL,
                 voice=KOKORO_VOICE,
@@ -152,9 +153,11 @@ class KokoroHandler:
             
             logging.debug("Successfully streamed text to speakers")
             
-            # Now save to file with a separate API call
-            logging.debug("Saving streamed audio to file...")
-            return self._save_audio_to_file(text, optimize)
+            # Save to file if requested
+            if save_to_file:
+                logging.debug("Saving streamed audio to file...")
+                return self._save_audio_to_file(text, optimize)
+            return None
             
         except Exception as e:
             logging.error(f"Error during text-to-speech streaming: {e}")

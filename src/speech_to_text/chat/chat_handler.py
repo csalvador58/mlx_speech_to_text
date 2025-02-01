@@ -47,6 +47,7 @@ class ChatHandler:
         text: str,
         use_kokoro: bool = False,
         stream_to_speakers: bool = False,
+        save_to_file: bool = True,
         optimize_voice: bool = False
     ) -> Tuple[bool, Optional[str]]:
         """
@@ -56,6 +57,7 @@ class ChatHandler:
             text: Text message to process
             use_kokoro: Whether to convert response to speech file
             stream_to_speakers: Whether to stream response to speakers
+            save_to_file: Whether to save audio responses to file
             optimize_voice: Whether to apply voice optimization
             
         Returns:
@@ -96,19 +98,25 @@ class ChatHandler:
                     # Log response text for both streaming and conversion
                     logging.info(f"Processing text-to-speech: {response_text}")
                     
-                    # Handle both streaming and conversion cases
-                    handler_method = (self.kokoro_handler.stream_text_to_speakers 
-                                    if stream_to_speakers 
-                                    else self.kokoro_handler.convert_text_to_speech)
-                    
-                    output_path = handler_method(
-                        response_text,
-                        optimize=optimize_voice
-                    )
-                    
-                    if output_path:
-                        action = "streamed" if stream_to_speakers else "converted"
-                        logging.info(f"Chat response {action} to speech: {output_path}")
+                    # Stream to speakers if requested
+                    output_path = None
+                    if stream_to_speakers:
+                        output_path = self.kokoro_handler.stream_text_to_speakers(
+                            response_text,
+                            optimize=optimize_voice,
+                            save_to_file=save_to_file
+                        )
+                        logging.info("Chat response streamed to speakers")
+                    elif save_to_file:
+                        # Only save to file if streaming is not enabled
+                        output_path = self.kokoro_handler.convert_text_to_speech(
+                            response_text,
+                            optimize=optimize_voice
+                        )
+                        
+                    if output_path and save_to_file:
+                        logging.info(f"Chat response saved to file: {output_path}")
+                        
                 except Exception as e:
                     logging.error(f"Error in Kokoro conversion/streaming: {e}")
             
