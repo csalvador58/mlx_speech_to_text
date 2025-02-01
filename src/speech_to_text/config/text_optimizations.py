@@ -36,6 +36,11 @@ def get_default_char_replacements() -> Dict[str, str]:
         "•": ",",    # Natural pause for bullets
     }
 
+def get_default_pronunciations() -> Dict[str, str]:
+    return {
+        "pikachu": "peeka-chu",
+    }
+
 @dataclass
 class TextOptimizer:
     """
@@ -43,6 +48,7 @@ class TextOptimizer:
     """
     ABBREVIATIONS: Dict[str, str] = field(default_factory=get_default_abbreviations)
     CHAR_REPLACEMENTS: Dict[str, str] = field(default_factory=get_default_char_replacements)
+    PRONUNCIATIONS: Dict[str, str] = field(default_factory=get_default_pronunciations)
     CHARS_TO_REMOVE: str = r'[*#`~\[\]()]'
 
     def optimize(self, text: str) -> str:
@@ -72,6 +78,10 @@ class TextOptimizer:
         # 4. Clean up whitespace and add natural pauses
         text = ' '.join(text.split())  # Normalize spaces
         text = re.sub(r'(?<=\w)\.(?=\s+[A-Z])', '... ', text)  # Add pauses between sentences
+
+        # 5. Apply pronunciation optimizations (done last to preserve special characters)
+        pattern = r'\b(' + '|'.join(map(re.escape, self.PRONUNCIATIONS.keys())) + r')\b'
+        text = re.sub(pattern, lambda m: self.PRONUNCIATIONS[m.group().lower()], text, flags=re.IGNORECASE)
 
         return text
 

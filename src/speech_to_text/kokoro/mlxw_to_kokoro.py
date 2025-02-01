@@ -41,6 +41,32 @@ class KokoroHandler:
             logging.error(f"Error creating output directory: {e}")
             raise
 
+    def _save_audio_to_file(self, text: str, optimize: bool = False) -> Optional[str]:
+        """
+        Save audio to file using Kokoro API.
+        
+        Args:
+            text: Text to convert to speech
+            optimize: Whether to apply voice optimization
+            
+        Returns:
+            Optional[str]: Path to saved file if successful, None otherwise
+        """
+        try:
+            with self.client.audio.speech.with_streaming_response.create(
+                model=KOKORO_MODEL,
+                voice=KOKORO_VOICE,
+                speed=KOKORO_SPEED,
+                input=text,
+                response_format=KOKORO_RESPONSE_FORMAT
+            ) as response:
+                logging.debug(f"Saving audio response to file - Status: {response.status_code}")
+                response.stream_to_file(KOKORO_OUTPUT_FILENAME)
+                return KOKORO_OUTPUT_FILENAME
+        except Exception as e:
+            logging.error(f"Error saving audio to file: {e}")
+            return None
+
     def convert_text_to_speech(self, text: str, optimize: bool = False) -> Optional[str]:
         """
         Convert text to speech using Kokoro API and save to file.
@@ -66,39 +92,28 @@ class KokoroHandler:
             logging.debug(f"Making request to Kokoro API - URL: {KOKORO_BASE_URL}/audio/speech")
             logging.debug(f"Request parameters - Model: {KOKORO_MODEL}, Voice: {KOKORO_VOICE}, Format: {KOKORO_RESPONSE_FORMAT}")
             
-            with self.client.audio.speech.with_streaming_response.create(
-                model=KOKORO_MODEL,
-                voice=KOKORO_VOICE,
-                speed=KOKORO_SPEED,
-                input=text,
-                response_format=KOKORO_RESPONSE_FORMAT
-            ) as response:
-                logging.debug(f"Received response from Kokoro API - Status: {response.status_code}")
-                response.stream_to_file(KOKORO_OUTPUT_FILENAME)
-                
-            return KOKORO_OUTPUT_FILENAME
+            return self._save_audio_to_file(text, optimize)
             
         except Exception as e:
             logging.error(f"Error during text-to-speech conversion: {e}")
             return None
 
-    def stream_text_to_speakers(self, text: str, optimize: bool = False) -> bool:
+    def stream_text_to_speakers(self, text: str, optimize: bool = False) -> Optional[str]:
         """
-        Convert text to speech and stream directly to speakers.
+        Convert text to speech, stream to speakers, and save to file.
         
         Args:
             text: Text to convert to speech
             optimize: Whether to apply voice optimization to the text
             
         Returns:
-            bool: True if streaming was successful, False otherwise
+            Optional[str]: Path to the saved audio file if successful, None otherwise
         """
         if not text:
             logging.error("No text provided for text-to-speech streaming")
-            return False
+            return None
             
         try:
-            # Log the original text
             logging.debug(f"Voice text optimization is enabled: {optimize}")
             logging.debug(f"Original text: {text}")
             
@@ -118,6 +133,7 @@ class KokoroHandler:
             logging.debug(f"Making streaming request to Kokoro API - URL: {KOKORO_BASE_URL}/audio/speech")
             logging.debug(f"Request parameters - Model: {KOKORO_MODEL}, Voice: {KOKORO_VOICE}, Format: pcm")
             
+            # First stream to speakers
             with self.client.audio.speech.with_streaming_response.create(
                 model=KOKORO_MODEL,
                 voice=KOKORO_VOICE,
@@ -125,20 +141,21 @@ class KokoroHandler:
                 input=text,
                 response_format="pcm"  # Use PCM format for direct streaming
             ) as response:
-                logging.debug(f"Received streaming response from Kokoro API - Status: {response.status_code}")
-                
-                # Stream chunks to speakers
+                logging.debug(f"Received streaming response - Status: {response.status_code}")
                 for chunk in response.iter_bytes(chunk_size=1024):
                     stream.write(chunk)
                 
-            # Clean up
+            # Clean up audio stream
             stream.stop_stream()
             stream.close()
             audio.terminate()
             
             logging.debug("Successfully streamed text to speakers")
-            return True
+            
+            # Now save to file with a separate API call
+            logging.debug("Saving streamed audio to file...")
+            return self._save_audio_to_file(text, optimize)
             
         except Exception as e:
             logging.error(f"Error during text-to-speech streaming: {e}")
-            return False
+            return None
