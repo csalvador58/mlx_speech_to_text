@@ -15,14 +15,21 @@ A comprehensive speech-to-text platform that combines real-time transcription wi
 
 ## Requirements:
 
-Run the following apps to access API endpoints:
+Install and Run the following apps to access API endpoints:
 - [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) - Text to Speech (Default: http://localhost:8880/v1)
 - [LMStudio](https://lmstudio.ai) - LLM Provider (Default: http://localhost:1234/v1)
+    - *Works with any platform supporting OpenAI endpoints:* ```POST /v1/chat/completions```
 
 Whisper model:
 - I recommend `mlx-community/whisper-large-v3-mlx`, default is set to `mlx-community/whisper-tiny-mlx-q4`
 - ***Note***: Setting the whisper model with only the name in your .env file will start a new HTTPS connection with hugging face to check for the model at each launch. Set the variable with the model's full path to avoid this.
     - See a list of mlx-community uploaded models on [Hugging Face](https://huggingface.co/collections/mlx-community/whisper-663256f9964fbb1177db93dc)
+
+[PortAudio](https://www.portaudio.com):
+- Needed by PyAudio library to stream audio
+```bash
+brew install portaudio
+```
 
 ## Setup
 
@@ -171,7 +178,6 @@ speech_to_text/
 
 Core Components:
 - mlx-whisper: Speech recognition engine
-- numpy: Numerical operations and audio processing
 - PyAudio: Real-time audio capture
 - pyperclip: Clipboard operations
 
