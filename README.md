@@ -100,7 +100,7 @@ uv run src/main.py <...> --doc <path to text file>   # Enable appending doc text
 - `--output-file FILE`: Save transcription to specified file
 - `--chat`: Enable interactive chat mode
 - `--chat-voice`: Enable chat with voice responses (stream to speakers only)
-- `--chat-voice`: Enable chat with voice responses (stream to speakers and save to file)
+- `--chat-voice-save`: (stream to speakers and save to file)
 - `--chat-id ID`: Continue an existing chat session
 - `--kokoro`: Convert transcribed text to speech
 - `--llm`: Process transcribed text through LLM
