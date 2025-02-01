@@ -1,14 +1,14 @@
 # File: src/main.py
 """
 Main entry point for the speech-to-text application.
-Handles command line arguments and orchestrates the transcription process.
+Supports both CLI and API server modes.
 """
 
 import argparse
 import logging
 import os
 from pathlib import Path
-
+from speech_to_text import create_app, __version__
 from speech_to_text.audio.recorder import AudioRecorder
 from speech_to_text.transcriber.whisper import WhisperTranscriber
 from speech_to_text.utils import (
@@ -25,6 +25,19 @@ from speech_to_text.config.settings import (
     MLXW_OUTPUT_FILENAME,
     OUTPUT_DIR
 )
+
+app = create_app()
+
+@app.route("/")
+def home():
+    return {
+        "message": "Welcome to the MLX Speech to Text API",
+        "version": __version__,
+        "endpoints": {
+            "copy": "/api/connect/copy",
+            "chat": "/api/connect/chat"
+        }
+    }
 
 def verify_output_directory() -> None:
     """Verify and create output directory if it doesn't exist."""
@@ -46,7 +59,6 @@ def validate_doc_path(doc_path: str) -> bool:
     if not content:
         return False
         
-    # Preview document content
     lines = content.splitlines()
     preview_lines = lines[:10]
     preview = '\n'.join(preview_lines)
@@ -54,73 +66,10 @@ def validate_doc_path(doc_path: str) -> bool:
     logging.info(f"Document validated: {validate_file_path(doc_path)}")
     return True
 
-def main():
-    """Main function to run the speech-to-text application."""
-    parser = argparse.ArgumentParser(
-        description="Real-time speech-to-text transcription program."
-    )
-    parser.add_argument(
-        "--single",
-        action="store_true",
-        help="Capture a single speech input and exit"
-    )
-    parser.add_argument(
-        "--output-file",
-        type=str,
-        help="Specify a file to save the transcription output"
-    )
-    parser.add_argument(
-        "--copy",
-        action="store_true",
-        help="Copy transcription to clipboard"
-    )
-    parser.add_argument(
-        "--kokoro",
-        action="store_true",
-        help="Enable Kokoro text-to-speech conversion and saves to audio file"
-    )
-    parser.add_argument(
-        "--optimize",
-        action="store_true",
-        help="Enable text optimization for voice synthesis"
-    )
-    parser.add_argument(
-        "--llm",
-        action="store_true",
-        help="Enable LLM processing of transcribed text"
-    )
-    parser.add_argument(
-        "--chat",
-        action="store_true",
-        help="Enable interactive chat mode with LLM"
-    )
-    parser.add_argument(
-        "--chat-voice",
-        action="store_true",
-        help="Enable interactive chat mode with voice responses streamed to speakers"
-    )
-    parser.add_argument(
-        "--chat-voice-save",
-        action="store_true",
-        help="Enable interactive chat mode with voice responses streamed to speakers and saved to file"
-    )
-    parser.add_argument(
-        "--chat-id",
-        type=str,
-        help="Continue an existing chat session"
-    )
-    parser.add_argument(
-        "--doc",
-        type=str,
-        help="Path to text file to analyze in chat mode (supports ~ for home directory)"
-    )
-    args = parser.parse_args()
-
-    # Set up logging
-    setup_logging()
-
+def run_cli(args):
+    """Run the application in CLI mode."""
     # Verify output directory at startup
-    logging.info("=== Application Initialization ===")
+    logging.info("=== Application Initialization (CLI Mode) ===")
     logging.info(f"Current working directory: {os.getcwd()}")
     verify_output_directory()
 
@@ -184,6 +133,102 @@ def main():
 
     except KeyboardInterrupt:
         logging.info("\nExiting program.")
+
+def run_server(port: int = 8081):
+    """Run the application in API server mode."""
+    logging.info("=== Application Initialization (API Mode) ===")
+    logging.info(f"Starting server on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=True)
+
+def main():
+    """Main function to parse arguments and run in appropriate mode."""
+    parser = argparse.ArgumentParser(
+        description="Real-time speech-to-text transcription program with CLI and API modes."
+    )
+    
+    # Mode selection
+    parser.add_argument(
+        "--server",
+        action="store_true",
+        help="Run in API server mode"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8081,
+        help="Port number for API server (default: 8081)"
+    )
+    
+    # CLI mode arguments
+    parser.add_argument(
+        "--single",
+        action="store_true",
+        help="Capture a single speech input and exit"
+    )
+    parser.add_argument(
+        "--output-file",
+        type=str,
+        help="Specify a file to save the transcription output"
+    )
+    parser.add_argument(
+        "--copy",
+        action="store_true",
+        help="Copy transcription to clipboard"
+    )
+    parser.add_argument(
+        "--kokoro",
+        action="store_true",
+        help="Enable Kokoro text-to-speech conversion"
+    )
+    parser.add_argument(
+        "--optimize",
+        action="store_true",
+        help="Enable text optimization for voice synthesis"
+    )
+    parser.add_argument(
+        "--llm",
+        action="store_true",
+        help="Enable LLM processing of transcribed text"
+    )
+    parser.add_argument(
+        "--chat",
+        action="store_true",
+        help="Enable interactive chat mode with LLM"
+    )
+    parser.add_argument(
+        "--chat-voice",
+        action="store_true",
+        help="Enable chat mode with voice responses streamed to speakers"
+    )
+    parser.add_argument(
+        "--chat-voice-save",
+        action="store_true",
+        help="Enable chat mode with voice responses saved to file"
+    )
+    parser.add_argument(
+        "--chat-id",
+        type=str,
+        help="Continue an existing chat session"
+    )
+    parser.add_argument(
+        "--doc",
+        type=str,
+        help="Path to text file to analyze in chat mode"
+    )
+    
+    args = parser.parse_args()
+
+    # Set up logging
+    setup_logging()
+
+    try:
+        if args.server:
+            run_server(args.port)
+        else:
+            run_cli(args)
+    except Exception as e:
+        logging.error(f"Application error: {e}")
+        exit(1)
 
 if __name__ == "__main__":
     main()
