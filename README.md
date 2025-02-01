@@ -81,7 +81,8 @@ uv run src/main.py --output-file transcript.txt  # Save to file
 
 # Features
 uv run src/main.py --chat             # Enable LLM speech to text mode
-uv run src/main.py --chat-voice       # Enable LLM voice mode
+uv run src/main.py --chat-voice       # Enable LLM voice mode (stream only)
+uv run src/main.py --chat-voice-save  # Enable LLM voice mode with file saving
 uv run src/main.py <...> --chat-id <ID>     # Continue existing chat session
 uv run src/main.py --kokoro           # Enable Speech to Voice
 uv run src/main.py --llm              # Enable LLM voice-text chat
@@ -98,7 +99,8 @@ uv run src/main.py <...> --doc <path to text file>   # Enable appending doc text
 - `--copy`: Copy transcription to clipboard
 - `--output-file FILE`: Save transcription to specified file
 - `--chat`: Enable interactive chat mode
-- `--chat-voice`: Enable chat with voice responses
+- `--chat-voice`: Enable chat with voice responses (stream to speakers only)
+- `--chat-voice`: Enable chat with voice responses (stream to speakers and save to file)
 - `--chat-id ID`: Continue an existing chat session
 - `--kokoro`: Convert transcribed text to speech
 - `--llm`: Process transcribed text through LLM
@@ -134,6 +136,11 @@ def get_default_char_replacements() -> Dict[str, str]:
         "—": " ",    # Space for readability
         "|": ",",    # Natural pause
         "•": ",",    # Natural pause for bullets
+    }
+
+def get_default_pronunciations() -> Dict[str, str]:
+    return {
+        "pikachu": "peeka-chu",
     }
 ```
 
