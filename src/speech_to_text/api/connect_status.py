@@ -1,7 +1,7 @@
 # File: src/speech_to_text/api/connect_status.py
 
 import logging
-from flask import Blueprint, Response, stream_with_context
+from flask import Blueprint, Response, jsonify, stream_with_context
 from queue import Empty
 
 from speech_to_text.config.settings import SSE_RETRY_TIMEOUT
@@ -80,3 +80,30 @@ def stream_status(session_id: str):
             "Connection": "keep-alive"
         }
     )
+
+@status_bp.route("/current/<session_id>", methods=["GET"])
+def current_status(session_id: str):
+    """
+    Return the most recent status update for a session.
+    If no update is available, return a default value.
+    """
+    queue = session_queues.get(session_id)
+    if not queue:
+        return jsonify({
+            "session_id": session_id,
+            "status": "error",
+            "message": "Session not found",
+            "progress": None
+        }), 404
+    try:
+        # Try to get an update without blocking
+        event_data = queue.get_nowait()
+        return jsonify(event_data["data"])
+    except Empty:
+        # No new events
+        return jsonify({
+            "session_id": session_id,
+            "status": "unknown",
+            "message": "No new update",
+            "progress": None
+        })
