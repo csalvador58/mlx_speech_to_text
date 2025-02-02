@@ -54,14 +54,22 @@ MODEL_NAME = os.getenv('MODEL_NAME', 'mlx-community/whisper-tiny-mlx-q4')
 VERBOSE = False
 WORD_TIMESTAMPS = False
 
+# Transcription Validation Settings
+MINIMUM_WORD_COUNT = get_env_int('MINIMUM_WORD_COUNT', 3)
+SUSPICIOUS_RESPONSES = [
+    "thank you.",
+    "thank you",
+    "thanks",
+    "okay",
+    "ok",
+    "yes",
+    "no"
+]
+
 # Text Output Settings
 MLXW_OUTPUT_FILENAME = f"{OUTPUT_DIR}/transcription.txt"
 
 # Kokoro Text-to-Speech Settings
-# Available voices: 
-#   af, af_bella, af_irulan, af_nicole, af_sarah, af_sky, 
-#   am_adam, am_michael, 
-#   bf_emma, bf_isabella, bm_george, bm_lewis
 KOKORO_BASE_URL = os.getenv('KOKORO_BASE_URL', 'http://localhost:8880/v1')
 KOKORO_API_KEY = os.getenv('KOKORO_API_KEY', 'not-needed')
 KOKORO_MODEL = os.getenv('KOKORO_MODEL', 'kokoro')
@@ -78,6 +86,9 @@ LLM_OUTPUT_FILENAME = f"{OUTPUT_DIR}/llm_response.txt"
 
 # Chat History Settings
 CHAT_HISTORY_DIR = f"{OUTPUT_DIR}/chat_history"
+
+# API Settings
+SSE_RETRY_TIMEOUT = 3000  # milliseconds
 
 print("\n=== Path Configuration ===")
 print(f"Output Directory: {OUTPUT_DIR}")

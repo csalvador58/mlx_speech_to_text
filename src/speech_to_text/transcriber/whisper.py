@@ -6,12 +6,14 @@ Handles transcription of audio data using the MLX Whisper model.
 
 import logging
 import mlx.core as mx
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 from mlx_whisper.transcribe import transcribe
 from speech_to_text.config.settings import (
     MODEL_NAME,
     VERBOSE,
     WORD_TIMESTAMPS,
+    MINIMUM_WORD_COUNT,
+    SUSPICIOUS_RESPONSES,
 )
 
 class WhisperTranscriber:
@@ -51,6 +53,7 @@ class WhisperTranscriber:
             # Ensure audio_data is in float32 format (MLX-Whisper expects normalized input)
             audio_data = audio_data.astype(mx.float32)
             
+            logging.info("Starting transcription...")
             # Perform transcription using MLX Whisper
             result = transcribe(
                 audio_data,
@@ -61,6 +64,12 @@ class WhisperTranscriber:
 
             if normalize_text:
                 result["text"] = self._normalize_text(result["text"])
+            
+            logging.info("Transcription completed, validating result...")
+            is_valid, error_message = self.validate_transcription(result["text"])
+            if not is_valid:
+                logging.error(f"Transcription validation failed: {error_message}")
+                result["validation_error"] = error_message
                 
             return result
 
@@ -84,6 +93,32 @@ class WhisperTranscriber:
         # Strip whitespace and convert to lowercase
         normalized = text.strip().lower()
         return normalized
+
+    def validate_transcription(self, text: str) -> Tuple[bool, Optional[str]]:
+        """
+        Validate transcription quality based on content and length.
+        
+        Args:
+            text: Transcribed text to validate
+            
+        Returns:
+            Tuple[bool, Optional[str]]: (is_valid, error_message if invalid)
+        """
+        if not text:
+            return False, "Empty transcription"
+            
+        normalized_text = self._normalize_text(text)
+        
+        # Check word count
+        word_count = len(normalized_text.split())
+        if word_count < MINIMUM_WORD_COUNT:
+            return False, f"Transcription too short ({word_count} words) - possible audio quality issue"
+            
+        # Check for suspicious responses
+        if normalized_text in [self._normalize_text(r) for r in SUSPICIOUS_RESPONSES]:
+            return False, "Low confidence transcription detected"
+            
+        return True, None
 
     def check_exit_command(self, transcription: Dict[str, Any]) -> bool:
         """

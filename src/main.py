@@ -35,7 +35,8 @@ def home():
         "version": __version__,
         "endpoints": {
             "copy": "/api/connect/copy",
-            "chat": "/api/connect/chat"
+            "chat": "/api/connect/chat",
+            "status": "/api/connect/status"
         }
     }
 
