@@ -41,8 +41,15 @@ def stream_status(session_id: str):
                         event=event_data["event"]
                     )
                     
-                    # If status is complete or error, clean up
+                    # If status is complete or error, send a termination event then clean up.
                     if event_data["data"]["status"] in ["complete", "error"]:
+                        termination_data = {
+                            "session_id": session_id,
+                            "status": "terminated",
+                            "message": "Session ended",
+                            "progress": None
+                        }
+                        yield format_sse(data=termination_data, event="termination")
                         cleanup_session(session_id)
                         break
                         

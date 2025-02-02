@@ -97,11 +97,11 @@ def start_chat():
 
         # Configure chat parameters based on mode
         use_kokoro = mode in ['voice', 'voice-save']
-        save_to_file = mode == 'voice-save'
+        save_to_file = (mode == 'voice-save')
         stream_to_speakers = mode in ['voice', 'voice-save']
 
         # Start recording process
-        with recorder:            
+        with recorder:
             success, error_message, response_data = handle_transcription(
                 recorder,
                 transcriber,
@@ -118,6 +118,19 @@ def start_chat():
             )
 
             if success and not error_message:
+                # ---------------------------------------------------------------------
+                # Final SSE status indicating completion for chat mode
+                # ---------------------------------------------------------------------
+                status_queue.put({
+                    "event": "recording",
+                    "data": {
+                        "session_id": session_id,
+                        "status": "complete",
+                        "message": "Chat session processed",
+                        "progress": None
+                    }
+                })
+
                 return jsonify(create_status_response(
                     "success",
                     "Chat session processed",
@@ -130,6 +143,19 @@ def start_chat():
                     }
                 )), 200
             else:
+                # ---------------------------------------------------------------------
+                # ADDED: Final SSE status on error
+                # ---------------------------------------------------------------------
+                status_queue.put({
+                    "event": "recording",
+                    "data": {
+                        "session_id": session_id,
+                        "status": "error",
+                        "message": error_message or "Failed to process audio",
+                        "progress": None
+                    }
+                })
+
                 cleanup_session(session_id)
                 return jsonify(create_status_response(
                     "error",
