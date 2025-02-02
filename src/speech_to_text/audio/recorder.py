@@ -6,7 +6,6 @@ Handles microphone input and audio processing.
 
 import logging
 import sys
-import numpy as np
 import mlx.core as mx
 import pyaudio
 from typing import Optional, List, Tuple
@@ -73,7 +72,6 @@ class AudioRecorder:
             float: Calibrated silence threshold value
         """
         logging.info("Calibrating silence threshold...")
-    
         self.start_stream()
         
         try:
@@ -85,12 +83,12 @@ class AudioRecorder:
                 if not data:
                     logging.warning("Empty audio data received during calibration.")
                     continue
-            
-                audio_data = mx.array(memoryview(data), dtype=mx.int16)
+
+                # Cast the memoryview to 'h' to interpret the bytes as int16 values.
+                audio_data = mx.array(memoryview(data).cast('h'), dtype=mx.int16)
                 max_value = mx.max(mx.abs(audio_data)).item()
                 background_frames.append(max_value)
             
-            # Ensure valid calibration data before proceeding
             if not background_frames:
                 logging.error("No valid background frames captured. Using default threshold.")
                 self.silence_threshold = DEFAULT_SILENCE_THRESHOLD
@@ -124,17 +122,13 @@ class AudioRecorder:
         try:
             while True:
                 data = self.stream.read(CHUNK_SIZE, exception_on_overflow=False)
-                # 'h' is the format code for int16, int16 required
+                # Correctly cast the data to int16 using memoryview.cast('h')
                 audio_data = mx.array(memoryview(data).cast('h'), dtype=mx.int16) 
                 
-                # Get max absolute value
                 max_amplitude = mx.max(mx.abs(audio_data)).item()
                 logging.debug(f"Detected max amplitude: {max_amplitude}, Silence threshold: {self.silence_threshold}")
 
-                # Check if audio_data exceeds the silence threshold
                 if max_amplitude < self.silence_threshold:
-
-                    # Create the status bar
                     progress = silent_chunks / SILENCE_CHUNKS
                     bar_length = 30  # Length of the progress bar
                     filled_length = int(progress * bar_length)
@@ -150,7 +144,6 @@ class AudioRecorder:
                 else:
                     silent_chunks = 0
 
-                # Detect end of speech
                 if silent_chunks > SILENCE_CHUNKS:
                     break
 
@@ -179,11 +172,8 @@ class AudioRecorder:
             return None
             
         try:
-             # Ensure frames are in a single tensor before concatenation
-            frames_tensor = mx.stack(frames) if len(frames) > 1 else frames[0]
-        
-            # Concatenate all audio data and normalize
-            audio_data = mx.concatenate(frames_tensor).astype(mx.float32) / 32768.0
+            # Concatenate all audio frames and normalize
+            audio_data = mx.concatenate(frames).astype(mx.float32) / 32768.0
             return audio_data
             
         except Exception as e:
