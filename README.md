@@ -114,9 +114,25 @@ uv run src/main.py <...> --doc <path to text file>   # Enable appending doc text
 - `--optimize`: Apply voice optimization for better speech synthesis
 - `--doc PATH`: Analyze a text document and discuss it in chat mode (supports ~ for home directory)
 
+### Curl Options
 
-## Manual Speech Optimizations
-Adjust in [text_optimization.py](src/speech_to_text/config/text_optimizations.py) file. Use to enhance word emphasis or even correct name pronunciations.
+##### Basic chat mode
+```bash
+curl -X POST "http://localhost:8081/api/connect/chat/start?mode=chat"
+```
+
+##### Voice mode with optimization and document
+```bash
+curl -X POST "http://localhost:8081/api/connect/chat/start?mode=voice&optimize=true&doc=/path/to/doc.txt"
+```
+
+##### Voice-save mode with existing chat
+```bash
+curl -X POST "http://localhost:8081/api/connect/chat/start?mode=voice-save&chat_id=existing_chat_id"
+```
+
+##### Manual Speech Optimizations
+- Adjust in [text_optimization.py](src/speech_to_text/config/text_optimizations.py) file. Use to enhance word emphasis or even correct name pronunciations.
 
 ```python
 def get_default_abbreviations() -> Dict[str, str]:

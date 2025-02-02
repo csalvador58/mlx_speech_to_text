@@ -2,9 +2,12 @@
 
 from flask import Blueprint, request, jsonify
 import logging
+from pathlib import Path
 from speech_to_text.audio.recorder import AudioRecorder
 from speech_to_text.transcriber.whisper import WhisperTranscriber
 from speech_to_text.utils import handle_transcription
+from speech_to_text.chat import ChatHandler
+from speech_to_text.utils.path_utils import validate_file_path
 import pyperclip
 
 connect_bp = Blueprint("connect", __name__)
@@ -62,45 +65,97 @@ def start_recording():
             "error": str(e)
         }), 500
 
-@connect_bp.route("/chat", methods=["POST"])
-def speech_to_chat():
+@connect_bp.route("/chat/start", methods=["POST"])
+def start_chat():
     """
-    Handle speech-to-chat requests.
-    Expects JSON data with speech content and optional chat parameters.
+    Start a chat session with optional voice output.
+    Query Parameters:
+    - mode: 'chat' | 'voice' | 'voice-save'
+    - optimize: boolean (optional)
+    - chat_id: string (optional)
+    - doc: string (optional)
     """
-    if not request.is_json:
-        return jsonify({
-            "status": "error",
-            "message": "Content-Type must be application/json"
-        }), 400
-    
     try:
-        data = request.json
+        # Get query parameters
+        mode = request.args.get('mode', 'chat')
+        optimize = request.args.get('optimize', 'false').lower() == 'true'
+        chat_id = request.args.get('chat_id')
+        doc_path = request.args.get('doc')
         
-        # Validate required fields
-        if "content" not in data:
+        # Validate mode
+        if mode not in ['chat', 'voice', 'voice-save']:
             return jsonify({
                 "status": "error",
-                "message": "Missing required field: content"
+                "message": "Invalid mode. Must be 'chat', 'voice', or 'voice-save'"
             }), 400
+
+        # Initialize chat handler
+        chat_handler = ChatHandler()
+
+        # Handle document path if provided
+        if doc_path:
+            if not validate_file_path(Path(doc_path)):
+                return jsonify({
+                    "status": "error",
+                    "message": "Invalid document path"
+                }), 400
+
+        # Handle existing chat if chat_id provided
+        if chat_id:
+            if not chat_handler.load_existing_chat(chat_id):
+                return jsonify({
+                    "status": "error",
+                    "message": f"Failed to load chat session: {chat_id}"
+                }), 404
+        else:
+            chat_handler.start_new_chat(doc_path=doc_path)
+
+        # Initialize recorder and transcriber
+        recorder = AudioRecorder()
+        transcriber = WhisperTranscriber()
+
+        # Configure chat parameters based on mode
+        use_kokoro = mode in ['voice', 'voice-save']
+        save_to_file = mode == 'voice-save'
+        stream_to_speakers = mode in ['voice', 'voice-save']
+
+        # Start recording process
+        with recorder:
+            recorder.calibrate_silence_threshold()
             
-        # Optional chat parameters
-        chat_id = data.get("chat_id")
-        
-        # TODO: Implement speech-to-chat logic
-        # For now, just acknowledge receipt
-        return jsonify({
-            "status": "success",
-            "message": "Chat content received",
-            "data": {
-                "content": data["content"],
-                "chat_id": chat_id
-            }
-        }), 200
-        
+            success = handle_transcription(
+                recorder,
+                transcriber,
+                copy_to_clipboard=False,
+                output_file=None,
+                use_kokoro=use_kokoro,
+                use_llm=True,
+                chat_handler=chat_handler,
+                stream_to_speakers=stream_to_speakers,
+                save_to_file=save_to_file,
+                optimize_voice=optimize
+            )
+
+            if success:
+                return jsonify({
+                    "status": "success",
+                    "message": "Chat session started",
+                    "data": {
+                        "chat_id": chat_handler.chat_history.current_chat_id,
+                        "mode": mode,
+                        "optimize": optimize
+                    }
+                }), 200
+            else:
+                return jsonify({
+                    "status": "error",
+                    "message": "Failed to process audio"
+                }), 500
+
     except Exception as e:
-        logging.error(f"Error processing speech-to-chat request: {str(e)}")
+        logging.error(f"Error starting chat session: {str(e)}")
         return jsonify({
             "status": "error",
-            "message": "Internal server error"
+            "message": "Internal server error",
+            "error": str(e)
         }), 500
