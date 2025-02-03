@@ -5,7 +5,7 @@ Provides reusable functions for saving and processing transcriptions.
 """
 
 import logging
-import time
+import time  # <-- Imported for artificial delay
 from typing import Optional, Tuple, Callable, Dict, Any
 from threading import Event
 
@@ -16,21 +16,23 @@ from speech_to_text.llm import MLXWToLLM
 from speech_to_text.kokoro import KokoroHandler
 from speech_to_text.utils.path_utils import safe_write_file
 
+
 def save_transcription(text: str, output_file: Optional[str]) -> None:
     """
     Save transcription to a file.
-    
+
     Args:
         text: Text content to save
         output_file: File path to save to. If None or empty, no save is performed.
     """
     if not text or not output_file:
         return
-        
+
     if safe_write_file(text, output_file):
         logging.info(f"Transcription saved to: {output_file}")
     else:
         logging.error(f"Failed to save transcription to: {output_file}")
+
 
 def handle_transcription(
     recorder: AudioRecorder,
@@ -48,7 +50,7 @@ def handle_transcription(
 ) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
     """
     Handle a single transcription cycle.
-    
+
     Args:
         recorder: Audio recorder instance
         transcriber: Whisper transcriber instance
@@ -62,10 +64,11 @@ def handle_transcription(
         optimize_voice: Whether to apply voice optimization to the text
         status_callback: Optional callback for status updates
         stop_event: Optional event to signal stopping
-        
+
     Returns:
         Tuple[bool, Optional[str], Optional[Dict]]: (continue_flag, error_message, response_data)
     """
+
     def update_status(status: str, message: str, progress: Optional[int] = None):
         """Helper to call status callback if provided."""
         if status_callback:
@@ -73,10 +76,10 @@ def handle_transcription(
 
     # Set status callback for recorder
     recorder.set_status_callback(status_callback)
-    
+
     # Start calibration
     recorder.calibrate_silence_threshold()
-    
+
     # Check if we should stop
     if stop_event and stop_event.is_set():
         return False, "Recording stopped", None
@@ -99,11 +102,14 @@ def handle_transcription(
 
     # Start transcription processing
     update_status("processing", "Processing your request...", None)
-    
+
+    # <-- Artificial delay for testing SSE events; remove in production.
+    time.sleep(2)
+
     # Perform transcription
     start_time = time.time()
     result = transcriber.transcribe_audio(audio_data)
-    
+
     if result is None:
         error_msg = "Transcription failed"
         logging.error(error_msg)
@@ -136,24 +142,25 @@ def handle_transcription(
             use_kokoro=use_kokoro,
             stream_to_speakers=stream_to_speakers,
             save_to_file=save_to_file,
-            optimize_voice=optimize_voice
+            optimize_voice=optimize_voice,
         )
-        
+
         if stream_to_speakers:
             update_status("streaming", "Playing response audio...", None)
-            
+
         if response:
             response_data["chat_response"] = response
             chat_id = chat_handler.chat_history.current_chat_id
             update_status("complete", response, None)
             response_data["chat_id"] = chat_id
-            
+
         return continue_chat, None, response_data
 
     # Handle clipboard copy
     if copy_to_clipboard:
         try:
             import pyperclip
+
             pyperclip.copy(text)
             logging.info("Text copied to clipboard")
             update_status("complete", "Ready to paste from clipboard", None)
@@ -197,8 +204,7 @@ def handle_transcription(
         try:
             kokoro_handler = KokoroHandler()
             output_path = kokoro_handler.convert_text_to_speech(
-                text,
-                optimize=optimize_voice
+                text, optimize=optimize_voice
             )
             if output_path:
                 logging.info(f"Text-to-speech conversion saved to: {output_path}")

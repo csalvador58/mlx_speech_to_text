@@ -13,27 +13,28 @@ from flask_cors import CORS
 from speech_to_text.audio.recorder import AudioRecorder
 from speech_to_text.transcriber.whisper import WhisperTranscriber
 
-__all__ = [
-    "AudioRecorder",
-    "WhisperTranscriber",
-    "create_app"
-]
+__all__ = ["AudioRecorder", "WhisperTranscriber", "create_app"]
+
 
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
-    
+
     # Enable CORS
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": ["http://localhost:8081"],
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type"]
-        }
-    })
+    CORS(
+        app,
+        resources={
+            r"/api/*": {
+                "origins": ["http://127.0.0.1:8081"],
+                "methods": ["GET", "POST", "OPTIONS"],
+                "allow_headers": ["Content-Type"],
+            }
+        },
+    )
 
     # Register the API blueprint
     from .api.connect import connect_bp
+
     app.register_blueprint(connect_bp, url_prefix="/api/connect")
 
     return app

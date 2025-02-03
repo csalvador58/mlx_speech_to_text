@@ -16,8 +16,8 @@ A comprehensive speech-to-text platform that combines real-time transcription wi
 ## Requirements:
 
 Install and Run the following apps to access API endpoints:
-- [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) - Text to Speech (Default: http://localhost:8880/v1)
-- [LMStudio](https://lmstudio.ai) - LLM Provider (Default: http://localhost:1234/v1)
+- [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) - Text to Speech (Default: http://127.0.0.1:8880/v1)
+- [LMStudio](https://lmstudio.ai) - LLM Provider (Default: http://127.0.0.1:1234/v1)
     - *Works with any platform supporting OpenAI endpoints:* ```POST /v1/chat/completions```
 
 Whisper model:
@@ -118,17 +118,17 @@ uv run src/main.py <...> --doc <path to text file>   # Enable appending doc text
 
 ##### Basic chat mode
 ```bash
-curl -X POST "http://localhost:8081/api/connect/chat/start?mode=chat"
+curl -X POST "http://127.0.0.1:8081/api/connect/chat/start?mode=chat"
 ```
 
 ##### Voice mode with optimization and document
 ```bash
-curl -X POST "http://localhost:8081/api/connect/chat/start?mode=voice&optimize=true&doc=/path/to/doc.txt"
+curl -X POST "http://127.0.0.1:8081/api/connect/chat/start?mode=voice&optimize=true&doc=/path/to/doc.txt"
 ```
 
 ##### Voice-save mode with existing chat
 ```bash
-curl -X POST "http://localhost:8081/api/connect/chat/start?mode=voice-save&chat_id=existing_chat_id"
+curl -X POST "http://127.0.0.1:8081/api/connect/chat/start?mode=voice-save&chat_id=existing_chat_id"
 ```
 
 ##### Manual Speech Optimizations

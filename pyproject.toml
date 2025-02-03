@@ -13,7 +13,7 @@ dependencies = [
     "openai>=1.59.6",
     "python-dotenv>=1.0.0",
     "flask>=3.1.0",
-    "flask-cors>=5.0.0"
+    "flask-cors>=5.0.0",
 ]
 
 [project.optional-dependencies]
@@ -28,3 +28,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/speech_to_text"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.4",
+]

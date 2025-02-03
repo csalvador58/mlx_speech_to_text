@@ -6,6 +6,4 @@ Exposes the KokoroHandler class for text-to-speech functionality.
 
 from .mlxw_to_kokoro import KokoroHandler
 
-__all__ = [
-    'KokoroHandler'
-]
+__all__ = ["KokoroHandler"]
