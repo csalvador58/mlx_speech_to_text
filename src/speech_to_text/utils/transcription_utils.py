@@ -103,9 +103,6 @@ def handle_transcription(
     # Start transcription processing
     update_status("processing", "Processing your request...", None)
 
-    # <-- Artificial delay for testing SSE events; remove in production.
-    time.sleep(2)
-
     # Perform transcription
     start_time = time.time()
     result = transcriber.transcribe_audio(audio_data)

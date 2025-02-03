@@ -6,12 +6,18 @@ Handles streaming status updates to clients.
 
 import logging
 from flask import Blueprint, Response, jsonify, stream_with_context
-from queue import Empty
+from queue import Empty, Queue
+from threading import Lock
+from typing import Dict, Optional
 
 from speech_to_text.config.settings import SSE_RETRY_TIMEOUT
 from speech_to_text.utils.api_utils import format_sse, session_queues, cleanup_session
 
 status_bp = Blueprint("connect_status", __name__)
+
+# Store last status per session
+last_status: Dict[str, dict] = {}
+status_lock = Lock()
 
 VALID_STATUS_TYPES = {
     "calibrating": "Starting background calibration...",
@@ -22,7 +28,6 @@ VALID_STATUS_TYPES = {
     "complete": "",  # Message varies by mode
     "error": "",  # Error message
 }
-
 
 def validate_status_event(status: str, message: str, progress: int = None) -> bool:
     """
@@ -47,6 +52,15 @@ def validate_status_event(status: str, message: str, progress: int = None) -> bo
 
     return True
 
+def update_last_status(session_id: str, status_data: dict) -> None:
+    """Thread-safe update of last status."""
+    with status_lock:
+        last_status[session_id] = status_data
+
+def get_last_status(session_id: str) -> Optional[dict]:
+    """Thread-safe retrieval of last status."""
+    with status_lock:
+        return last_status.get(session_id)
 
 @status_bp.route("/<session_id>", methods=["GET"])
 def stream_status(session_id: str):
@@ -57,14 +71,14 @@ def stream_status(session_id: str):
             # Get queue for this session
             queue = session_queues.get(session_id)
             if not queue:
-                yield format_sse(
-                    {
-                        "session_id": session_id,
-                        "status": "error",
-                        "message": "Session not found",
-                        "progress": None,
-                    }
-                )
+                status_data = {
+                    "session_id": session_id,
+                    "status": "error",
+                    "message": "Session not found",
+                    "progress": None,
+                }
+                update_last_status(session_id, status_data)
+                yield format_sse(status_data)
                 return
 
             # Set SSE retry timeout
@@ -74,7 +88,7 @@ def stream_status(session_id: str):
             while True:
                 try:
                     event_data = queue.get(timeout=30)  # 30 second timeout
-
+                    
                     # Validate status data
                     status = event_data["data"]["status"]
                     message = event_data["data"]["message"]
@@ -83,6 +97,9 @@ def stream_status(session_id: str):
                     if not validate_status_event(status, message, progress):
                         continue
 
+                    # Update last known status
+                    update_last_status(session_id, event_data["data"])
+                    
                     # Stream the event
                     yield format_sse(data=event_data["data"], event=event_data["event"])
 
@@ -100,15 +117,15 @@ def stream_status(session_id: str):
             cleanup_session(session_id)
 
         except Exception as e:
+            error_data = {
+                "session_id": session_id,
+                "status": "error",
+                "message": str(e),
+                "progress": None,
+            }
+            update_last_status(session_id, error_data)
+            yield format_sse(error_data)
             logging.error(f"Error in status stream [{session_id}]: {str(e)}")
-            yield format_sse(
-                {
-                    "session_id": session_id,
-                    "status": "error",
-                    "message": str(e),
-                    "progress": None,
-                }
-            )
             cleanup_session(session_id)
 
     return Response(
@@ -121,13 +138,13 @@ def stream_status(session_id: str):
         },
     )
 
-
 @status_bp.route("/current/<session_id>", methods=["GET"])
 def current_status(session_id: str):
     """
     Return the most recent status update for a session.
-    If no update is available, return a default value.
+    If no recent update is available, returns the last known status.
     """
+    # First check if session exists
     queue = session_queues.get(session_id)
     if not queue:
         return jsonify(
@@ -142,14 +159,20 @@ def current_status(session_id: str):
     try:
         # Try to get latest update without blocking
         event_data = queue.get_nowait()
+        update_last_status(session_id, event_data["data"])
         return jsonify(event_data["data"])
     except Empty:
-        # No new events
+        # Return last known status if available
+        last_known = get_last_status(session_id)
+        if last_known:
+            return jsonify(last_known)
+        
+        # Fallback if no status is available
         return jsonify(
             {
                 "session_id": session_id,
                 "status": "unknown",
-                "message": "No new update",
+                "message": "No status available",
                 "progress": None,
             }
         )

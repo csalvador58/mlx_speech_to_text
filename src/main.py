@@ -7,6 +7,8 @@ Supports both CLI and API server modes.
 import argparse
 import logging
 import os
+import signal
+import sys
 from pathlib import Path
 from speech_to_text import create_app, __version__
 from speech_to_text.audio.recorder import AudioRecorder
@@ -17,11 +19,17 @@ from speech_to_text.utils.path_utils import (
     validate_file_path,
     safe_read_file,
 )
+from speech_to_text.utils.api_utils import cleanup_session
 from speech_to_text.chat import ChatHandler
 from speech_to_text.config.settings import MLXW_OUTPUT_FILENAME, OUTPUT_DIR
 
 app = create_app()
 
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    logging.info(f"Received signal {signum}. Starting graceful shutdown...")
+    cleanup_session()
+    sys.exit(0)
 
 @app.route("/")
 def home():
@@ -35,13 +43,11 @@ def home():
         },
     }
 
-
 def verify_output_directory() -> None:
     """Verify and create output directory if it doesn't exist."""
     if not ensure_directory(OUTPUT_DIR):
         raise RuntimeError(f"Failed to create/verify output directory: {OUTPUT_DIR}")
     logging.info(f"Output directory verified/created: {OUTPUT_DIR}")
-
 
 def validate_doc_path(doc_path: str) -> bool:
     """
@@ -63,7 +69,6 @@ def validate_doc_path(doc_path: str) -> bool:
     logging.debug(f"Document preview (first 10 lines):\n{preview}\n...")
     logging.info(f"Document validated: {validate_file_path(doc_path)}")
     return True
-
 
 def run_cli(args):
     """Run the application in CLI mode."""
@@ -130,7 +135,12 @@ def run_server(port: int = 8081):
     """Run the application in API server mode."""
     logging.info("=== Application Initialization (API Mode) ===")
     logging.info(f"Starting server on port {port}")
-    # Enable threading so that SSE connections can be handled concurrently.
+    
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Enable threading for SSE
     app.run(host="0.0.0.0", port=port, debug=True, threaded=True)
 
 
@@ -198,6 +208,7 @@ def main():
             run_cli(args)
     except Exception as e:
         logging.error(f"Application error: {e}")
+        cleanup_session()  # Ensure cleanup on error
         exit(1)
 
 
