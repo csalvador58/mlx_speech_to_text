@@ -4,6 +4,7 @@ Configuration settings for the speech-to-text application.
 Environment variables take precedence over default values.
 """
 import os
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 import pyaudio
@@ -30,6 +31,13 @@ def get_env_int(key: str, default: int) -> int:
     except (TypeError, ValueError):
         return default
 
+def get_env_float(key: str, default: float) -> float:
+    """Convert environment string to float with fallback."""
+    try:
+        return float(os.getenv(key, default))
+    except (TypeError, ValueError):
+        return default
+
 # Logging Settings
 LOG_FORMAT = os.getenv('LOG_FORMAT', '%(asctime)s - %(levelname)s - %(message)s')
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO') # INFO | DEBUG
@@ -47,7 +55,10 @@ CALIBRATION_FRAMES = 30
 CALIBRATION_BUFFER = 200
 
 # Output Directory Settings - ensure it's never empty
-OUTPUT_DIR = "src/.cache"
+OUTPUT_DIR = os.getenv('OUTPUT_DIR', "src/.cache")
+if not OUTPUT_DIR:
+    OUTPUT_DIR = "src/.cache"
+    logging.warning(f"OUTPUT_DIR was empty, using default: {OUTPUT_DIR}")
 
 # Whisper Model Settings
 MODEL_NAME = os.getenv('MODEL_NAME', 'mlx-community/whisper-tiny-mlx-q4')
@@ -74,14 +85,16 @@ KOKORO_BASE_URL = os.getenv('KOKORO_BASE_URL', 'http://localhost:8880/v1')
 KOKORO_API_KEY = os.getenv('KOKORO_API_KEY', 'not-needed')
 KOKORO_MODEL = os.getenv('KOKORO_MODEL', 'kokoro')
 KOKORO_VOICE = os.getenv('KOKORO_VOICE', 'af_bella')
-KOKORO_SPEED = os.getenv('KOKORO_SPEED', 1.0)
+KOKORO_SPEED = get_env_float('KOKORO_SPEED', 1.0)
 KOKORO_RESPONSE_FORMAT = "mp3"
 KOKORO_OUTPUT_FILENAME = f"{OUTPUT_DIR}/mlxw_to_kokoro_output.mp3"
 
 # LLM Integration Settings
 LLM_BASE_URL = os.getenv('LLM_BASE_URL', 'http://localhost:1234/v1')
 LLM_API_KEY = os.getenv('LLM_API_KEY', 'lm-studio')
-LLM_MODEL = os.getenv('LLM_MODEL', 'qwen2.5-14b-instruct-1m@q8_0')
+LLM_MODEL = os.getenv('LLM_MODEL', 'mistral-small-24b-instruct-2501@4bit')  # Updated default
+LLM_MAX_TOKENS = get_env_int('LLM_MAX_TOKENS', 2048)
+LLM_TEMPERATURE = get_env_float('LLM_TEMPERATURE', 0.7)
 LLM_OUTPUT_FILENAME = f"{OUTPUT_DIR}/llm_response.txt"
 
 # Chat History Settings
@@ -90,6 +103,7 @@ CHAT_HISTORY_DIR = f"{OUTPUT_DIR}/chat_history"
 # API Settings
 SSE_RETRY_TIMEOUT = 3000  # milliseconds
 
+# Print Configuration Summary
 print("\n=== Path Configuration ===")
 print(f"Output Directory: {OUTPUT_DIR}")
 

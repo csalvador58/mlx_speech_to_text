@@ -8,7 +8,7 @@ import logging
 import sys
 import mlx.core as mx
 import pyaudio
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Callable
 
 from speech_to_text.config.settings import (
     AUDIO_FORMAT,
@@ -29,6 +29,7 @@ class AudioRecorder:
         self.audio = pyaudio.PyAudio()
         self.stream: Optional[pyaudio.Stream] = None
         self.silence_threshold: float = DEFAULT_SILENCE_THRESHOLD
+        self._status_callback: Optional[Callable] = None
         
     def __enter__(self):
         """Context manager entry point."""
@@ -37,6 +38,15 @@ class AudioRecorder:
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Context manager exit point for cleanup."""
         self.cleanup()
+
+    def set_status_callback(self, callback: Callable[[str, str, Optional[int]], None]) -> None:
+        """Set status callback function."""
+        self._status_callback = callback
+
+    def _emit_status(self, status: str, message: str, progress: Optional[int] = None) -> None:
+        """Emit status update if callback is set."""
+        if self._status_callback:
+            self._status_callback(status, message, progress)
 
     def start_stream(self) -> None:
         """Start the audio input stream."""
@@ -65,73 +75,62 @@ class AudioRecorder:
         logging.info("Audio resources cleaned up")
 
     def calibrate_silence_threshold(self) -> float:
-        """
-        Calibrate the silence threshold based on background noise.
-        
-        Returns:
-            float: Calibrated silence threshold value
-        """
+        """Calibrate the silence threshold based on background noise."""
         logging.info("Calibrating silence threshold...")
+        self._emit_status("calibrating", "Starting background calibration...", None)
         self.start_stream()
         
         try:
             background_frames = []
             for _ in range(CALIBRATION_FRAMES):
                 data = self.stream.read(CHUNK_SIZE, exception_on_overflow=False)
-                
-                # Ensure data is properly formatted
                 if not data:
-                    logging.warning("Empty audio data received during calibration.")
                     continue
-
-                # Cast the memoryview to 'h' to interpret the bytes as int16 values.
                 audio_data = mx.array(memoryview(data).cast('h'), dtype=mx.int16)
                 max_value = mx.max(mx.abs(audio_data)).item()
                 background_frames.append(max_value)
             
             if not background_frames:
-                logging.error("No valid background frames captured. Using default threshold.")
+                logging.error("No valid background frames captured")
                 self.silence_threshold = DEFAULT_SILENCE_THRESHOLD
+                self._emit_status("error", "Calibration failed", None)
                 return self.silence_threshold
             
             background_tensor = mx.array(background_frames)
             self.silence_threshold = mx.mean(background_tensor).item() + CALIBRATION_BUFFER
             logging.info(f"Calibrated silence threshold: {self.silence_threshold}")
-            
             return self.silence_threshold
             
         except Exception as e:
             logging.error(f"Error during calibration: {e}")
             self.silence_threshold = DEFAULT_SILENCE_THRESHOLD
+            self._emit_status("error", f"Calibration error: {str(e)}", None)
             return self.silence_threshold
 
     def record_audio(self) -> Tuple[List[mx.array], bool]:
-        """
-        Record audio until silence is detected.
-        
-        Returns:
-            Tuple[List[mx.array], bool]: Tuple containing:
-                - List of recorded audio frames
-                - Boolean indicating if recording was successful
-        """
+        """Record audio until silence is detected."""
         self.start_stream()
         frames = []
         silent_chunks = 0
         last_message_length = 0
+        recording_started = False
         
         try:
+            self._emit_status("recording", "Ready for speech...", None)
+            
             while True:
                 data = self.stream.read(CHUNK_SIZE, exception_on_overflow=False)
-                # Correctly cast the data to int16 using memoryview.cast('h')
                 audio_data = mx.array(memoryview(data).cast('h'), dtype=mx.int16) 
                 
                 max_amplitude = mx.max(mx.abs(audio_data)).item()
-                logging.debug(f"Detected max amplitude: {max_amplitude}, Silence threshold: {self.silence_threshold}")
-
+                
                 if max_amplitude < self.silence_threshold:
-                    progress = silent_chunks / SILENCE_CHUNKS
-                    bar_length = 30  # Length of the progress bar
-                    filled_length = int(progress * bar_length)
+                    # Calculate silence progress percentage
+                    progress = int((silent_chunks / SILENCE_CHUNKS) * 100)
+                    
+                    # Update CLI progress bar
+                    bar_length = 30
+                    filled_length = int((progress / 100) * bar_length)
                     bar = "#" * filled_length + "-" * (bar_length - filled_length)
                     message = f"Silence delay [{bar}]"
                     
@@ -140,8 +139,12 @@ class AudioRecorder:
                     sys.stdout.flush()
                     last_message_length = len(message)
                     
+                    # Emit silence progress
+                    self._emit_status("silence", "Detecting silence...", progress)
                     silent_chunks += 1
                 else:
+                    if not recording_started:
+                        recording_started = True
                     silent_chunks = 0
 
                 if silent_chunks > SILENCE_CHUNKS:
@@ -151,31 +154,23 @@ class AudioRecorder:
 
             sys.stdout.write("\n")
             sys.stdout.flush()
-
             return frames, True
 
         except Exception as e:
             logging.error(f"Error recording audio: {e}")
+            self._emit_status("error", f"Recording error: {str(e)}", None)
             return frames, False
 
     def process_audio_frames(self, frames: List[mx.array]) -> Optional[mx.array]:
-        """
-        Process recorded audio frames into a format suitable for transcription.
-        
-        Args:
-            frames: List of recorded audio frames (MLX arrays)
-            
-        Returns:
-            Optional[mx.array]: Processed audio data, normalized to float32
-        """
+        """Process recorded audio frames for transcription."""
         if not frames:
             return None
             
         try:
-            # Concatenate all audio frames and normalize
             audio_data = mx.concatenate(frames).astype(mx.float32) / 32768.0
             return audio_data
             
         except Exception as e:
             logging.error(f"Error processing audio frames: {e}")
+            self._emit_status("error", f"Processing error: {str(e)}", None)
             return None

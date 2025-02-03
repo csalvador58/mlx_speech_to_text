@@ -71,25 +71,23 @@ def handle_transcription(
         if status_callback:
             status_callback(status, message, progress)
 
+    # Set status callback for recorder
+    recorder.set_status_callback(status_callback)
+    
     # Start calibration
-    update_status("calibrating", "Calibrating microphone...", 0)
     recorder.calibrate_silence_threshold()
     
-    # Ready to record
-    update_status("ready", "Ready to record", None)
-    
+    # Check if we should stop
+    if stop_event and stop_event.is_set():
+        return False, "Recording stopped", None
+
     # Record audio
-    update_status("recording", "Recording in progress...", None)
     frames, success = recorder.record_audio()
     if not success or not frames:
         error_msg = "Failed to record audio"
         logging.error(error_msg)
         update_status("error", error_msg, None)
         return True, error_msg, None
-
-    # Check if we should stop
-    if stop_event and stop_event.is_set():
-        return False, "Recording stopped", None
 
     # Process audio frames
     audio_data = recorder.process_audio_frames(frames)
@@ -99,15 +97,12 @@ def handle_transcription(
         update_status("error", error_msg, None)
         return True, error_msg, None
 
-    # Perform transcription    
-    update_status("processing", "Processing audio...", None)
-    start_time = time.time()
+    # Start transcription processing
+    update_status("processing", "Processing your request...", None)
     
+    # Perform transcription
+    start_time = time.time()
     result = transcriber.transcribe_audio(audio_data)
-    # End timing and print duration
-    end_time = time.time()
-    execution_time = end_time - start_time
-    logging.debug(f"transcribe_audio completed in {execution_time:.6f} seconds")
     
     if result is None:
         error_msg = "Transcription failed"
@@ -143,8 +138,16 @@ def handle_transcription(
             save_to_file=save_to_file,
             optimize_voice=optimize_voice
         )
+        
+        if stream_to_speakers:
+            update_status("streaming", "Playing response audio...", None)
+            
         if response:
             response_data["chat_response"] = response
+            chat_id = chat_handler.chat_history.current_chat_id
+            update_status("complete", response, None)
+            response_data["chat_id"] = chat_id
+            
         return continue_chat, None, response_data
 
     # Handle clipboard copy
@@ -153,6 +156,7 @@ def handle_transcription(
             import pyperclip
             pyperclip.copy(text)
             logging.info("Text copied to clipboard")
+            update_status("complete", "Ready to paste from clipboard", None)
         except Exception as e:
             error_msg = f"Failed to copy to clipboard: {e}"
             logging.error(error_msg)
@@ -160,8 +164,10 @@ def handle_transcription(
             return True, error_msg, response_data
 
     # Handle file output
+    files_saved = []
     if output_file:
         save_transcription(text, output_file)
+        files_saved.append(output_file)
 
     # Check for exit command
     if transcriber.check_exit_command(result):
@@ -175,8 +181,11 @@ def handle_transcription(
             llm_response = llm_handler.process_text(text)
             if llm_response:
                 logging.info("LLM processing completed successfully")
-                save_transcription(llm_response, output_file)
                 response_data["llm_response"] = llm_response
+                if output_file:
+                    save_transcription(llm_response, output_file)
+                    files_saved.append(output_file)
+                update_status("complete", llm_response, None)
         except Exception as e:
             error_msg = f"Error in LLM processing: {e}"
             logging.error(error_msg)
@@ -184,7 +193,7 @@ def handle_transcription(
             return True, error_msg, response_data
 
     # Handle Kokoro conversion
-    if use_kokoro:
+    if use_kokoro and not stream_to_speakers:  # Skip if already streaming
         try:
             kokoro_handler = KokoroHandler()
             output_path = kokoro_handler.convert_text_to_speech(
@@ -194,11 +203,16 @@ def handle_transcription(
             if output_path:
                 logging.info(f"Text-to-speech conversion saved to: {output_path}")
                 response_data["audio_path"] = str(output_path)
+                files_saved.append(str(output_path))
         except Exception as e:
             error_msg = f"Error in Kokoro conversion: {e}"
             logging.error(error_msg)
             update_status("error", error_msg, None)
             return True, error_msg, response_data
 
-    update_status("complete", "Processing complete", 100)
+    # Final status update for file saves
+    if files_saved and not chat_handler and not copy_to_clipboard:
+        paths_msg = f"Saved to: {', '.join(files_saved)}"
+        update_status("complete", paths_msg, None)
+
     return True, None, response_data

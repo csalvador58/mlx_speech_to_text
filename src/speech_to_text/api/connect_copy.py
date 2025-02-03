@@ -21,10 +21,7 @@ copy_bp = Blueprint("connect_copy", __name__)
 
 @copy_bp.route("/start", methods=["POST"])
 def start_recording():
-    """
-    Start recording audio for transcription and clipboard copy.
-    No input data required - simply triggers the recording process.
-    """
+    """Start recording audio for transcription and clipboard copy."""
     session_id = str(uuid.uuid4())
     stop_event = Event()
     
@@ -33,6 +30,7 @@ def start_recording():
     session_queues[session_id] = status_queue
     
     try:
+        # Initialize handlers
         recorder = AudioRecorder()
         transcriber = WhisperTranscriber()
         
@@ -41,7 +39,6 @@ def start_recording():
         
         # Start recording process
         with recorder:
-            # Handle the transcription
             success, error_message, response_data = handle_transcription(
                 recorder,
                 transcriber,
@@ -58,11 +55,11 @@ def start_recording():
             )
             
             if success and not error_message and response_data:
-                # Get the clipboard content to verify and return
+                # Get the clipboard content to verify
                 clipboard_content = pyperclip.paste()
                 return jsonify(create_status_response(
                     "success",
-                    "Audio recorded and transcribed",
+                    "Audio processed and copied to clipboard",
                     data={
                         "transcription": clipboard_content,
                         "session_id": session_id
@@ -74,7 +71,7 @@ def start_recording():
                     "error",
                     error_message or "Failed to process audio",
                     error={
-                        "type": "transcription_quality",
+                        "type": "transcription_error",
                         "description": error_message or "Unknown error occurred"
                     }
                 )), 422
