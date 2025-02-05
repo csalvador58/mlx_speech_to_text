@@ -12,8 +12,6 @@ import re
 def get_default_abbreviations() -> Dict[str, str]:
     return {
         # "api": "A P I",
-        "e.g.": "example given",
-        "i.e.": "in example",
         "url": "U R L",
         "sql": "S Q L",
         "html": "H T M L",
@@ -30,6 +28,13 @@ def get_default_char_replacements() -> Dict[str, str]:
     return {
         "<|START_RESPONSE|>": "",  # Manually remove tokens
         "<|END_RESPONSE|>": "",
+        "<<Start of article>>": "",
+        "<<End of article>>": "",
+        "<think>": "Here's what I'm actually thinking",
+        "</think>": "Now here's my actual response.",
+        "U.S.": "US",
+        "e.g.": "example given",
+        "i.e.": "in example",
         ".": "...",  # Extend pause
         ":": ",",  # Natural pause
         ";": ",",  # Natural pause

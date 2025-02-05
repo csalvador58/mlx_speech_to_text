@@ -211,7 +211,7 @@ class MLXWToLLM:
                 f"{LLM_BASE_URL}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=30,  # Add timeout
+                # timeout=30,  # Add timeout
             )
 
             # Better error handling with response content
