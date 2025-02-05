@@ -13,7 +13,7 @@ A comprehensive speech-to-text platform that combines real-time transcription wi
 - Automatic silence detection and background noise calibration
 - Document analysis and chat integration
 
-## Requirements:
+## Requirements
 
 Install and Run the following apps to access API endpoints:
 - [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) - Text to Speech (Default: http://127.0.0.1:8880/v1)
@@ -36,7 +36,6 @@ brew install portaudio
 1. Clone the repository
 2. Setup the development environment:
 
-
 ```bash
 # Setup Whisper model, Kokoro, and LMStudio settings
 cp .env.example .env
@@ -44,7 +43,6 @@ cp .env.example .env
 - Set up the base urls of Kokoro and LMStudio in your .env file
 
 ```bash
-
 # Create and activate virtual environment
 uv venv
 source .venv/bin/activate
@@ -57,8 +55,7 @@ uv sync
 
 ### Using the Shell Script
 
-Make script executable. *(Current script runs the clipboard mode, adjust for your needs)*:
-
+Make script executable *(Current script runs the clipboard mode, adjust for your needs)*:
 
 ```bash
 chmod +x speech_to_text.sh
@@ -68,14 +65,6 @@ chmod +x speech_to_text.sh
 ### Using UV Run Directly
 
 The application supports various modes and features:
-
-- Example uses: 
-    - I run the script instance for the speech to clipboard feature. I use Apple shortcuts to bind keys to send the `Enter` command to enable listening.
-        - ```uv run src/main.py --copy```
-    - I'll also run another app instance to for LLM Chat with voice using "--chat-voice".
-        - ```uv run src/main.py --chat-voice --optimize```
-
-    *Tip: Using the "--optimize" flag often works better with most models. Larger models don't really need it.*
 
 ```bash
 # Basic Modes
@@ -100,39 +89,26 @@ uv run src/main.py <...> --doc <path to text file>   # Enable appending doc text
 #  See /src/.cache directory for chat history, transriptions, and audio files.
 ```
 
-### Command Line Options
+### API Reference
 
-- `--single`: Run in single transcription mode
-- `--copy`: Copy transcription to clipboard
-- `--output-file FILE`: Save transcription to specified file
-- `--chat`: Enable interactive chat mode
-- `--chat-voice`: Enable chat with voice responses (stream to speakers only)
-- `--chat-voice-save`: (stream to speakers and save to file)
-- `--chat-id ID`: Continue an existing chat session
-- `--kokoro`: Convert transcribed text to speech
-- `--llm`: Process transcribed text through LLM
-- `--optimize`: Apply voice optimization for better speech synthesis
-- `--doc PATH`: Analyze a text document and discuss it in chat mode (supports ~ for home directory)
+For detailed API documentation, including endpoints, parameters, and example requests, see [API Documentation](src/docs/Speech%20To%20Text%20Endpoints.md).
 
-### Curl Options
+### Quick API Examples
 
-##### Basic chat mode
 ```bash
+# Basic chat mode
 curl -X POST "http://127.0.0.1:8081/api/connect/chat/start?mode=chat"
-```
 
-##### Voice mode with optimization and document
-```bash
+# Voice mode with optimization and document
 curl -X POST "http://127.0.0.1:8081/api/connect/chat/start?mode=voice&optimize=true&doc=/path/to/doc.txt"
-```
 
-##### Voice-save mode with existing chat
-```bash
+# Voice-save mode with existing chat
 curl -X POST "http://127.0.0.1:8081/api/connect/chat/start?mode=voice-save&chat_id=existing_chat_id"
 ```
 
-##### Manual Speech Optimizations
-- Adjust in [text_optimization.py](src/speech_to_text/config/text_optimizations.py) file. Use to enhance word emphasis or even correct name pronunciations.
+### Speech Optimizations Configuration
+
+Adjust in [text_optimization.py](src/speech_to_text/config/text_optimizations.py) file to enhance word emphasis or correct name pronunciations:
 
 ```python
 def get_default_abbreviations() -> Dict[str, str]:
@@ -150,15 +126,11 @@ def get_default_abbreviations() -> Dict[str, str]:
 
 def get_default_char_replacements() -> Dict[str, str]:
     return {
-        "<|START_RESPONSE|>": "",  # Manually remove tokens
+        "<|START_RESPONSE|>": "",  # Remove tokens
         "<|END_RESPONSE|>": "",
         ".": "...",  # Extend pause
         ":": ",",    # Natural pause
         ";": ",",    # Natural pause
-        "–": " ",    # Space for readability
-        "—": " ",    # Space for readability
-        "|": ",",    # Natural pause
-        "•": ",",    # Natural pause for bullets
     }
 
 def get_default_pronunciations() -> Dict[str, str]:
@@ -167,12 +139,13 @@ def get_default_pronunciations() -> Dict[str, str]:
     }
 ```
 
-
 ## Project Structure
 
 ```
 speech_to_text/
 ├── src/
+│   ├── docs/             # Documentation
+│   │   └── Speech To Text Endpoints.md
 │   ├── speech_to_text/
 │   │   ├── __init__.py
 │   │   ├── audio/        # Audio recording and processing
@@ -190,43 +163,14 @@ speech_to_text/
 └── README.md            
 ```
 
-## Dependencies
+## Local Data Storage
 
-Core Components:
-- mlx-whisper: Speech recognition engine
-- PyAudio: Real-time audio capture
-- pyperclip: Clipboard operations
+The application stores all generated files in [src/.cache](src/.cache):
 
-Extended Features:
-- openai: Kokoro text-to-speech API integration
-- requests: LLM API communication
-- json: Chat history persistence
-
-Dependencies are managed through `pyproject.toml` and `uv.lock`. All dependencies are defined in the project's `pyproject.toml` file.
-
-## Local Data
-
-The application stores all text and audio generated files in [src/.cache](src/.cache):
-
-### Chat History
-- Location: Configured via `CHAT_HISTORY_DIR` in settings
-- Format: JSON files (`{chat_id}.json`)
-- Contains: Full conversation history with user and assistant messages
-
-### Transcribed Text
-- Location: Based on `--output-file` argument or `MLXW_OUTPUT_FILENAME`
-- Format: Plain text files
-- Contains: Raw transcription output
-
-### LLM Responses
-- Location: Configured via `LLM_OUTPUT_FILENAME` in settings
-- Format: Text file with formatted responses and separators
-- Contains: Processed text from LLM
-
-### Speech/Audio Output
-- Location: Configured via `KOKORO_OUTPUT_FILENAME` in settings
-- Format: Based on `KOKORO_RESPONSE_FORMAT` setting
-- Contains: Generated speech audio files (when not streaming)
+- **Chat History**: JSON files containing conversation history (`{chat_id}.json`)
+- **Transcribed Text**: Raw transcription output in plain text files
+- **LLM Responses**: Processed text from LLM with formatted responses
+- **Speech/Audio Output**: Generated speech audio files when not streaming
 
 ### (Optional) Add Apple Shortcut
 Set a shortcut to send ENTER cmd to first session in an iTerm window: [iCloud Link to Shortcut](https://www.icloud.com/shortcuts/014c924d6e53423a8d10aefb6625ca21)

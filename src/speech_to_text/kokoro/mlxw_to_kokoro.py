@@ -9,6 +9,7 @@ import os
 from typing import Optional
 import pyaudio
 from openai import OpenAI
+from requests.exceptions import Timeout
 
 from speech_to_text.config.settings import (
     KOKORO_BASE_URL,
@@ -19,6 +20,7 @@ from speech_to_text.config.settings import (
     KOKORO_RESPONSE_FORMAT,
     KOKORO_OUTPUT_FILENAME,
     OUTPUT_DIR,
+    LLM_REQUEST_TIMEOUT,
 )
 from speech_to_text.config.text_optimizations import optimizer
 
@@ -28,7 +30,11 @@ class KokoroHandler:
 
     def __init__(self):
         """Initialize the Kokoro handler with OpenAI client."""
-        self.client = OpenAI(base_url=KOKORO_BASE_URL, api_key=KOKORO_API_KEY)
+        self.client = OpenAI(
+            base_url=KOKORO_BASE_URL, 
+            api_key=KOKORO_API_KEY,
+            timeout=LLM_REQUEST_TIMEOUT,
+        )
         self._ensure_output_directory()
 
     def _ensure_output_directory(self) -> None:
@@ -63,6 +69,9 @@ class KokoroHandler:
                 )
                 response.stream_to_file(KOKORO_OUTPUT_FILENAME)
                 return KOKORO_OUTPUT_FILENAME
+        except Timeout:
+            logging.error(f"Timeout occurred while saving audio to file (timeout: {LLM_REQUEST_TIMEOUT}s)")
+            return None
         except Exception as e:
             logging.error(f"Error saving audio to file: {e}")
             return None
@@ -144,23 +153,27 @@ class KokoroHandler:
             )
 
             # Stream to speakers
-            with self.client.audio.speech.with_streaming_response.create(
-                model=KOKORO_MODEL,
-                voice=KOKORO_VOICE,
-                speed=KOKORO_SPEED,
-                input=text,
-                response_format="pcm",  # Use PCM format for direct streaming
-            ) as response:
-                logging.debug(
-                    f"Received streaming response - Status: {response.status_code}"
-                )
-                for chunk in response.iter_bytes(chunk_size=1024):
-                    stream.write(chunk)
-
-            # Clean up audio stream
-            stream.stop_stream()
-            stream.close()
-            audio.terminate()
+            try:
+                with self.client.audio.speech.with_streaming_response.create(
+                    model=KOKORO_MODEL,
+                    voice=KOKORO_VOICE,
+                    speed=KOKORO_SPEED,
+                    input=text,
+                    response_format="pcm",  # Use PCM format for direct streaming
+                ) as response:
+                    logging.debug(
+                        f"Received streaming response - Status: {response.status_code}"
+                    )
+                    for chunk in response.iter_bytes(chunk_size=1024):
+                        stream.write(chunk)
+            except Timeout:
+                logging.error(f"Timeout occurred during streaming (timeout: {LLM_REQUEST_TIMEOUT}s)")
+                return None
+            finally:
+                # Clean up audio stream
+                stream.stop_stream()
+                stream.close()
+                audio.terminate()
 
             logging.debug("Successfully streamed text to speakers")
 

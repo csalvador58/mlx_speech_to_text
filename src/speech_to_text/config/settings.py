@@ -103,7 +103,9 @@ CHAT_PREVIEW_MAX_LENGTH = get_env_int("CHAT_PREVIEW_MAX_LENGTH", 500)  # Maximum
 CHAT_FILE_EXTENSION = ".json"  # Standard extension for chat history files
 
 # API Settings
-SSE_RETRY_TIMEOUT = 3000  # milliseconds
+SSE_RETRY_TIMEOUT = 3000    # Client retry interval in milliseconds if connection drops
+SSE_KEEPALIVE_TIMEOUT = 5   # Keepalive interval in seconds
+LLM_REQUEST_TIMEOUT = 600   # LLM request timeout in seconds (10 minutes)
 
 # Print Configuration Summary
 print("\n=== Path Configuration ===")

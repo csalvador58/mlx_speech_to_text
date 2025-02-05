@@ -15,6 +15,7 @@ from speech_to_text.config.settings import (
     LLM_MAX_TOKENS,
     LLM_TEMPERATURE,
     LLM_OUTPUT_FILENAME,
+    LLM_REQUEST_TIMEOUT,
     OUTPUT_DIR,
 )
 from speech_to_text.utils.path_utils import ensure_directory, safe_write_file
@@ -41,7 +42,7 @@ class MLXWToLLM:
         """Validate LLM API connection and compatibility."""
         try:
             # Test connection with a simple request
-            response = requests.get(f"{LLM_BASE_URL}/models")
+            response = requests.get(f"{LLM_BASE_URL}/models", timeout=LLM_REQUEST_TIMEOUT)
             response.raise_for_status()
 
             # Check if model is available
@@ -206,12 +207,12 @@ class MLXWToLLM:
             )
             logging.debug(f"Request payload: {json.dumps(payload, indent=2)}")
 
-            # Make request to LLM API
+            # Make request to LLM API with configured timeout
             response = requests.post(
                 f"{LLM_BASE_URL}/chat/completions",
                 headers=headers,
                 json=payload,
-                # timeout=30,  # Add timeout
+                timeout=LLM_REQUEST_TIMEOUT
             )
 
             # Better error handling with response content
@@ -248,6 +249,9 @@ class MLXWToLLM:
 
             return response_text, result
 
+        except requests.exceptions.Timeout:
+            logging.error(f"LLM API request timed out after {LLM_REQUEST_TIMEOUT} seconds")
+            return None, None
         except requests.exceptions.RequestException as e:
             logging.error(f"Error during chat API request: {e}")
             return None, None
@@ -305,7 +309,7 @@ class MLXWToLLM:
                 f"{LLM_BASE_URL}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=30,
+                timeout=LLM_REQUEST_TIMEOUT
             )
 
             # Check if request was successful
@@ -320,6 +324,9 @@ class MLXWToLLM:
 
             return response_text
 
+        except requests.exceptions.Timeout:
+            logging.error(f"LLM API request timed out after {LLM_REQUEST_TIMEOUT} seconds")
+            return None
         except requests.exceptions.RequestException as e:
             logging.error(f"Error during LLM API request: {e}")
             return None

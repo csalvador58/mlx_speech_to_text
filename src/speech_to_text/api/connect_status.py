@@ -10,7 +10,7 @@ from queue import Empty, Queue
 from threading import Lock
 from typing import Dict, Optional
 
-from speech_to_text.config.settings import SSE_RETRY_TIMEOUT
+from speech_to_text.config.settings import SSE_RETRY_TIMEOUT, SSE_KEEPALIVE_TIMEOUT
 from speech_to_text.utils.api_utils import format_sse, session_queues, cleanup_session
 
 status_bp = Blueprint("connect_status", __name__)
@@ -87,7 +87,7 @@ def stream_status(session_id: str):
             # Stream status updates from queue
             while True:
                 try:
-                    event_data = queue.get(timeout=30)  # 30 second timeout
+                    event_data = queue.get(timeout=SSE_KEEPALIVE_TIMEOUT)
                     
                     # Validate status data
                     status = event_data["data"]["status"]
@@ -109,7 +109,7 @@ def stream_status(session_id: str):
                         break
 
                 except Empty:
-                    # Send keepalive
+                    # Send keepalive after timeout
                     yield format_sse({"type": "keepalive"})
 
         except GeneratorExit:
