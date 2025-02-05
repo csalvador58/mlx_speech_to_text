@@ -134,6 +134,10 @@ def handle_transcription(
 
     # Handle chat mode
     if chat_handler:
+        # Send streaming status BEFORE starting the chat process if streaming is enabled
+        if stream_to_speakers:
+            update_status("streaming", "Playing response audio...", None)
+
         continue_chat, response = chat_handler.process_message(
             text,
             use_kokoro=use_kokoro,
@@ -141,9 +145,6 @@ def handle_transcription(
             save_to_file=save_to_file,
             optimize_voice=optimize_voice,
         )
-
-        if stream_to_speakers:
-            update_status("streaming", "Playing response audio...", None)
 
         if response:
             response_data["chat_response"] = response
