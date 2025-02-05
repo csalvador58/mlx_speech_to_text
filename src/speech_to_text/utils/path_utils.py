@@ -7,7 +7,8 @@ Provides consistent path operations and validation across the application.
 import logging
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, List, Pattern
+import re
 
 
 def normalize_path(path: Union[str, Path]) -> Path:
@@ -156,3 +157,31 @@ def safe_write_file(
     except Exception as e:
         logging.error(f"Error writing to file: {file_path} - {e}")
         return False
+
+
+def safe_list_files(directory: Union[str, Path], extension: str = ".json") -> List[Path]:
+    """
+    Safely list files in a directory with specific extension.
+
+    Args:
+        directory: Directory to list files from
+        extension: File extension to filter (default: .json)
+
+    Returns:
+        List[Path]: List of matching file paths, empty list if directory invalid
+    """
+    try:
+        dir_path = normalize_path(directory)
+        if not dir_path.exists() or not dir_path.is_dir():
+            logging.warning(f"Directory does not exist or is not a directory: {directory}")
+            return []
+
+        # Get all files with specified extension
+        files = list(dir_path.glob(f"*{extension}"))
+        
+        logging.debug(f"Found {len(files)} {extension} files in {dir_path}")
+        return sorted(files)
+
+    except Exception as e:
+        logging.error(f"Error listing directory contents: {directory} - {e}")
+        return []

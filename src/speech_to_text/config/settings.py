@@ -99,6 +99,8 @@ LLM_OUTPUT_FILENAME = f"{OUTPUT_DIR}/llm_response.txt"
 
 # Chat History Settings
 CHAT_HISTORY_DIR = f"{OUTPUT_DIR}/chat_history"
+CHAT_PREVIEW_MAX_LENGTH = get_env_int("CHAT_PREVIEW_MAX_LENGTH", 500)  # Maximum length for chat previews
+CHAT_FILE_EXTENSION = ".json"  # Standard extension for chat history files
 
 # API Settings
 SSE_RETRY_TIMEOUT = 3000  # milliseconds
@@ -110,7 +112,8 @@ print(f"Output Directory: {OUTPUT_DIR}")
 print("\n=== Output File Paths ===")
 print(f"MLXW Output: {MLXW_OUTPUT_FILENAME}")
 print(f"Kokoro Output: {KOKORO_OUTPUT_FILENAME}")
-print(f"LLM Output: {LLM_OUTPUT_FILENAME}\n")
+print(f"LLM Output: {LLM_OUTPUT_FILENAME}")
+print(f"Chat History: {CHAT_HISTORY_DIR}\n")
 
 print("\n=== Models ===")
 print(f"Whisper: {MODEL_NAME}")

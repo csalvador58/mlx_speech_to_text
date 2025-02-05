@@ -27,6 +27,39 @@ from speech_to_text.utils.api_utils import (
 chat_bp = Blueprint("connect_chat", __name__)
 
 
+@chat_bp.route("/list", methods=["GET"])
+def list_chats():
+    """
+    Retrieve list of available chat sessions.
+    Returns a list of chat IDs sorted by modification time (most recent first).
+    """
+    try:
+        # Use ChatHandler to get list of chats
+        chat_handler = ChatHandler()
+        chat_files = chat_handler.chat_history.get_chat_list()
+
+        return jsonify(
+            create_status_response(
+                "success",
+                "Chat history retrieved successfully",
+                data={"chats": chat_files}
+            )
+        ), 200
+
+    except Exception as e:
+        logging.error(f"Error retrieving chat history: {str(e)}")
+        return jsonify(
+            create_status_response(
+                "error",
+                "Failed to retrieve chat history",
+                error={
+                    "type": "server_error",
+                    "description": str(e)
+                }
+            )
+        ), 500
+
+
 @chat_bp.route("/start", methods=["POST"])
 def start_chat():
     """

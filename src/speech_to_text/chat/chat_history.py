@@ -6,15 +6,21 @@ Handles saving, loading, and updating chat conversations.
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 
-from speech_to_text.config.settings import CHAT_HISTORY_DIR
+from speech_to_text.config.settings import (
+    CHAT_HISTORY_DIR,
+    CHAT_PREVIEW_MAX_LENGTH,
+    CHAT_FILE_EXTENSION,
+)
 from speech_to_text.utils.path_utils import (
     ensure_directory,
     validate_file_path,
     safe_read_file,
     safe_write_file,
+    safe_list_files,
 )
 
 
@@ -43,10 +49,80 @@ class ChatHistory:
             chat_id: The chat ID to get the path for
 
         Returns:
-            Optional[Path]: Validated Path object or None if invalid
+            Optional[Path]: Validated Path object or None if validation fails
         """
-        file_path = Path(CHAT_HISTORY_DIR) / f"{chat_id}.json"
+        file_path = Path(CHAT_HISTORY_DIR) / f"{chat_id}{CHAT_FILE_EXTENSION}"
         return validate_file_path(file_path)
+
+    def _extract_preview(self, messages: List[Dict[str, str]]) -> str:
+        """
+        Extract preview text from the last chat message.
+        
+        Args:
+            messages: List of chat messages
+        
+        Returns:
+            str: Preview text or empty string if no messages found
+        """
+        if not messages:
+            return ""
+        
+        # Get the last message's content
+        last_message = messages[-1]
+        content = last_message.get("content", "")
+        
+        # Truncate and add ellipsis if needed
+        return content[:CHAT_PREVIEW_MAX_LENGTH] + (
+            "..." if len(content) > CHAT_PREVIEW_MAX_LENGTH else ""
+        )
+
+    def get_chat_list(self) -> List[Dict[str, Any]]:
+        """
+        Get list of available chat sessions sorted by modification time.
+        
+        Returns:
+            List[Dict[str, Any]]: List of chat information dictionaries containing:
+                - id: Chat ID
+                - modified: Modification timestamp
+                - preview: Preview of first user message
+        """
+        try:
+            # Get all JSON files from chat history directory
+            files = safe_list_files(CHAT_HISTORY_DIR)
+            
+            chat_files = []
+            for file in files:
+                try:
+                    # Get file metadata
+                    mod_time = os.path.getmtime(file)
+                    chat_id = file.stem
+                    
+                    # Read chat content for preview
+                    content = safe_read_file(file)
+                    preview = ""
+                    if content:
+                        try:
+                            data = json.loads(content)
+                            messages = data.get("messages", [])
+                            preview = self._extract_preview(messages)
+                        except json.JSONDecodeError:
+                            logging.warning(f"Could not parse chat history file: {file}")
+                    
+                    chat_files.append({
+                        "id": chat_id,
+                        "modified": mod_time,
+                        "preview": preview
+                    })
+                except Exception as e:
+                    logging.warning(f"Error processing chat file {file}: {e}")
+                    continue
+
+            # Sort by modification time (newest first)
+            return sorted(chat_files, key=lambda x: x["modified"], reverse=True)
+            
+        except Exception as e:
+            logging.error(f"Error getting chat list: {e}")
+            return []
 
     def load_history(self, chat_id: str) -> bool:
         """
