@@ -46,7 +46,7 @@ def ensure_directory(directory: Union[str, Path]) -> bool:
         try:
             test_file.write_text("test")
             test_file.unlink()
-            logging.debug(f"Directory verified and writable: {dir_path}")
+            
             return True
         except Exception as e:
             logging.error(f"Directory is not writable: {dir_path} - {e}")

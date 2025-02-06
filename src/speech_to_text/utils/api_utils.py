@@ -61,6 +61,25 @@ def create_status_response(
     return response
 
 
+def get_event_type(status: str) -> str:
+    """
+    Get the appropriate event type for a status.
+    
+    Args:
+        status: Status identifier
+
+    Returns:
+        str: Event type for SSE
+    """
+    if status == "calibrating":
+        return "calibration"
+    elif status in ["recording", "silence", "processing"]:
+        return "recording"
+    elif status in ["streaming", "complete", "error"]:
+        return status
+    return "recording"  # Default event type
+
+
 def create_status_callback(session_id: str, status_queue: Queue) -> callable:
     """
     Create a status callback function for the given session.
@@ -76,7 +95,7 @@ def create_status_callback(session_id: str, status_queue: Queue) -> callable:
     def status_update(status: str, message: str, progress: Optional[int] = None):
         """Send status updates to SSE stream."""
         try:
-            event_type = "calibration" if status == "calibrating" else "recording"
+            event_type = get_event_type(status)
             status_queue.put(
                 {
                     "event": event_type,
@@ -97,13 +116,19 @@ def create_status_callback(session_id: str, status_queue: Queue) -> callable:
     return status_update
 
 
-def cleanup_session(session_id: str) -> None:
+def cleanup_session(session_id: Optional[str] = None) -> None:
     """
     Clean up session resources.
 
     Args:
-        session_id: Session to clean up
+        session_id: Optional specific session to clean up.
+                   If None, attempt to clean up all sessions.
     """
-    if session_id in session_queues:
-        del session_queues[session_id]
-        logging.info(f"Cleaned up session: {session_id}")
+    if session_id:
+        if session_id in session_queues:
+            del session_queues[session_id]
+            logging.info(f"Cleaned up session: {session_id}")
+    else:
+        # Clean all sessions
+        session_queues.clear()
+        logging.info("Cleaned up all sessions")

@@ -1,7 +1,7 @@
 # File: src/speech_to_text/api/connect_status.py
 """
 Status endpoint for SSE updates during the speech-to-text process.
-Handles streaming status updates to clients.
+Handles streaming status updates to clients with consistent event formatting.
 """
 
 import logging
@@ -109,8 +109,25 @@ def stream_status(session_id: str):
                         break
 
                 except Empty:
-                    # Send keepalive after timeout
-                    yield format_sse({"type": "keepalive"})
+                    # Get last known status for keepalive
+                    current_status = get_last_status(session_id)
+                    if current_status:
+                        # Send keepalive with current status preserved
+                        keepalive_data = {
+                            "session_id": session_id,
+                            "status": current_status["status"],
+                            "message": current_status["message"],
+                            "progress": current_status.get("progress")
+                        }
+                        yield format_sse(keepalive_data)
+                    else:
+                        # Fallback if no status available
+                        yield format_sse({
+                            "session_id": session_id,
+                            "status": "unknown",
+                            "message": "No status available",
+                            "progress": None
+                        })
 
         except GeneratorExit:
             logging.info(f"Client disconnected from status stream [{session_id}]")
