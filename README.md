@@ -91,7 +91,7 @@ uv run src/main.py <...> --doc <path to text file>   # Enable appending doc text
 
 ### API Reference
 
-For detailed API documentation, including endpoints, parameters, and example requests, see [API Documentation](src/docs/Speech%20To%20Text%20Endpoints.md).
+For detailed API documentation, including endpoints, parameters, and example requests, see [API Documentation](src/speech_to_text/docs/SpeechToTextEndpoints.md).
 
 ### Quick API Examples
 
