@@ -5,7 +5,6 @@ Provides reusable functions for saving and processing transcriptions.
 """
 
 import logging
-import time  # <-- Imported for artificial delay
 from typing import Optional, Tuple, Callable, Dict, Any
 from threading import Event
 
@@ -14,7 +13,7 @@ from speech_to_text.transcriber.whisper import WhisperTranscriber
 from speech_to_text.chat import ChatHandler
 from speech_to_text.llm import MLXWToLLM
 from speech_to_text.kokoro import KokoroHandler
-from speech_to_text.utils.path_utils import safe_write_file
+from speech_to_text.utils.path_utils import safe_write_file, validate_file_path
 
 
 def save_transcription(text: str, output_file: Optional[str]) -> None:
@@ -45,6 +44,7 @@ def handle_transcription(
     stream_to_speakers: bool = False,
     save_to_file: bool = True,
     optimize_voice: bool = False,
+    doc_path: Optional[str] = None,
     status_callback: Optional[Callable[[str, str, Optional[int]], None]] = None,
     stop_event: Optional[Event] = None,
 ) -> Tuple[bool, Optional[str], Optional[Dict[str, Any]]]:
@@ -62,6 +62,7 @@ def handle_transcription(
         stream_to_speakers: Whether to stream chat responses to speakers
         save_to_file: Whether to save audio responses to file
         optimize_voice: Whether to apply voice optimization to the text
+        doc_path: Optional path to document for analysis context
         status_callback: Optional callback for status updates
         stop_event: Optional event to signal stopping
 
@@ -73,6 +74,15 @@ def handle_transcription(
         """Helper to call status callback if provided."""
         if status_callback:
             status_callback(status, message, progress)
+
+    # Validate document path if provided
+    if doc_path:
+        if not validate_file_path(doc_path, must_exist=True):
+            error_msg = f"Invalid document path: {doc_path}"
+            logging.error(error_msg)
+            update_status("error", error_msg)
+            return True, error_msg, None
+        logging.info(f"Using document context from: {doc_path}")
 
     # Set status callback for recorder
     recorder.set_status_callback(status_callback)
@@ -104,7 +114,6 @@ def handle_transcription(
     update_status("processing", "Processing your request...", None)
 
     # Perform transcription
-    start_time = time.time()
     result = transcriber.transcribe_audio(audio_data)
 
     if result is None:
@@ -130,7 +139,10 @@ def handle_transcription(
 
     logging.info(f"Transcription: {text}")
 
-    response_data = {"transcription": text}
+    response_data = {
+        "transcription": text,
+        "doc_path": doc_path if doc_path else None
+    }
 
     # Handle chat mode
     if chat_handler:
@@ -144,6 +156,7 @@ def handle_transcription(
             stream_to_speakers=stream_to_speakers,
             save_to_file=save_to_file,
             optimize_voice=optimize_voice,
+            doc_path=doc_path  # Pass document path to chat handler
         )
 
         if response:
@@ -158,7 +171,6 @@ def handle_transcription(
     if copy_to_clipboard:
         try:
             import pyperclip
-
             pyperclip.copy(text)
             logging.info("Text copied to clipboard")
             update_status("complete", "Ready to paste from clipboard", None)

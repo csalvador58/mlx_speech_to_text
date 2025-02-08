@@ -18,7 +18,7 @@ from speech_to_text.config.settings import (
     LLM_REQUEST_TIMEOUT,
     OUTPUT_DIR,
 )
-from speech_to_text.utils.path_utils import ensure_directory, safe_write_file
+from speech_to_text.utils.path_utils import ensure_directory, safe_write_file, safe_read_file
 
 
 class MLXWToLLM:
@@ -66,70 +66,19 @@ class MLXWToLLM:
             logging.error(f"Unexpected error during LLM validation: {e}")
             logging.warning("Continuing without validation, but API calls may fail")
 
-    def _validate_messages(self, messages: List[Dict[str, str]]) -> bool:
-        """
-        Validate message format before sending to API.
-
-        Args:
-            messages: List of message dictionaries
-
-        Returns:
-            bool: True if valid, False otherwise
-        """
-        try:
-            if not messages:
-                logging.error("Empty messages list")
-                return False
-
-            # Verify each message has required fields
-            for msg in messages:
-                if not isinstance(msg, dict):
-                    logging.error(f"Invalid message format - not a dictionary: {msg}")
-                    return False
-
-                if "role" not in msg or "content" not in msg:
-                    logging.error(f"Missing required fields in message: {msg}")
-                    return False
-
-                if msg["role"] not in ["system", "user", "assistant"]:
-                    logging.error(f"Invalid role in message: {msg['role']}")
-                    return False
-
-                if not isinstance(msg["content"], str):
-                    logging.error(
-                        f"Content must be string, got: {type(msg['content'])}"
-                    )
-                    return False
-
-                if not msg["content"].strip():
-                    logging.error("Empty message content")
-                    return False
-
-            # Verify system message position
-            system_messages = [msg for msg in messages if msg["role"] == "system"]
-            if system_messages:
-                first_system_idx = messages.index(system_messages[0])
-                if first_system_idx != 0:
-                    logging.error("System message must be first in the messages list")
-                    return False
-
-            # Test JSON serialization
-            json.dumps({"messages": messages})
-            return True
-
-        except Exception as e:
-            logging.error(f"Message validation failed: {e}")
-            return False
-
     def _prepare_messages(
-        self, current_text: str, message_history: List[Dict[str, str]]
+        self, 
+        current_text: str, 
+        message_history: List[Dict[str, str]],
+        doc_path: Optional[str] = None
     ) -> List[Dict[str, str]]:
         """
-        Prepare messages array for LLM request, ensuring system messages are positioned correctly.
+        Prepare messages array for LLM request, adding document context if provided.
 
         Args:
             current_text: Current message to process
             message_history: List of previous messages
+            doc_path: Optional path to document for analysis
 
         Returns:
             List[Dict[str, str]]: Properly ordered messages for LLM request
@@ -138,7 +87,24 @@ class MLXWToLLM:
             logging.warning("Empty current text provided")
             return []
 
-        # Extract and validate system messages
+        messages = []
+
+        # Add document context as system message if provided
+        if doc_path:
+            doc_content = safe_read_file(doc_path)
+            if doc_content:
+                doc_message = {
+                    "role": "system",
+                    "content": (
+                        f"<<DOCUMENT CONTEXT>>\n{doc_content}\n<<END DOCUMENT CONTEXT>>\n\n"
+                        "Consider the above document context when responding to queries. "
+                        "You can reference specific parts when relevant."
+                    )
+                }
+                messages.append(doc_message)
+                logging.info(f"Added document context from: {doc_path}")
+
+        # Extract and validate system messages from history
         system_messages = [
             msg for msg in message_history if msg.get("role") == "system"
         ]
@@ -147,33 +113,32 @@ class MLXWToLLM:
         conversation = [msg for msg in message_history if msg.get("role") != "system"]
 
         # Combine in correct order: system messages first, then conversation, then current message
-        messages = []
         messages.extend(system_messages)  # System messages always first
         messages.extend(conversation)  # Previous conversation
         messages.append({"role": "user", "content": current_text})  # Current message
 
         # Log message structure
         logging.debug(f"Prepared messages structure:")
+        logging.debug(f"- Document context: {'Yes' if doc_path else 'No'}")
         logging.debug(f"- System messages: {len(system_messages)}")
         logging.debug(f"- Conversation messages: {len(conversation)}")
         logging.debug(f"- Total messages: {len(messages)}")
 
-        # Validate final message structure
-        if not self._validate_messages(messages):
-            logging.error("Message validation failed, may cause API errors")
-            return []
-
         return messages
 
     def process_chat(
-        self, text: str, message_history: List[Dict[str, str]]
+        self, 
+        text: str, 
+        message_history: List[Dict[str, str]],
+        doc_path: Optional[str] = None
     ) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
         """
-        Process a chat message with conversation history.
+        Process a chat message with conversation history and optional document context.
 
         Args:
             text: Current message to process
             message_history: List of previous messages in the conversation
+            doc_path: Optional path to document for analysis
 
         Returns:
             Tuple[Optional[str], Optional[Dict[str, Any]]]:
@@ -185,8 +150,8 @@ class MLXWToLLM:
             return None, None
 
         try:
-            # Prepare messages with correct ordering
-            messages = self._prepare_messages(text, message_history)
+            # Prepare messages with correct ordering and document context
+            messages = self._prepare_messages(text, message_history, doc_path)
             if not messages:
                 return None, None
 
@@ -205,7 +170,8 @@ class MLXWToLLM:
             logging.debug(
                 f"Making chat request to LLM API - URL: {LLM_BASE_URL}/chat/completions"
             )
-            logging.debug(f"Request payload: {json.dumps(payload, indent=2)}")
+            if doc_path:
+                logging.debug(f"Including document context from: {doc_path}")
 
             # Make request to LLM API with configured timeout
             response = requests.post(
@@ -287,49 +253,10 @@ class MLXWToLLM:
             return None
 
         try:
-            # Prepare request payload
-            payload = {
-                "model": LLM_MODEL,
-                "messages": [{"role": "user", "content": text}],
-                "temperature": LLM_TEMPERATURE,
-                "max_tokens": LLM_MAX_TOKENS,
-                "stream": False,
-            }
-
-            headers = {"Content-Type": "application/json"}
-
-            # Log request details
-            logging.debug(
-                f"Making request to LLM API - URL: {LLM_BASE_URL}/chat/completions"
-            )
-            logging.debug(f"Request parameters - Model: {LLM_MODEL}")
-
-            # Make request to LLM API
-            response = requests.post(
-                f"{LLM_BASE_URL}/chat/completions",
-                headers=headers,
-                json=payload,
-                timeout=LLM_REQUEST_TIMEOUT
-            )
-
-            # Check if request was successful
-            response.raise_for_status()
-
-            # Parse response
-            result = response.json()
-            response_text = result["choices"][0]["message"]["content"]
-
-            # Save response to file
-            self._save_response(response_text)
-
+            # Process as a single message chat
+            response_text, _ = self.process_chat(text, [], doc_path=None)
             return response_text
 
-        except requests.exceptions.Timeout:
-            logging.error(f"LLM API request timed out after {LLM_REQUEST_TIMEOUT} seconds")
-            return None
-        except requests.exceptions.RequestException as e:
-            logging.error(f"Error during LLM API request: {e}")
-            return None
         except Exception as e:
             logging.error(f"Error during LLM processing: {e}")
             return None

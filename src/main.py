@@ -1,7 +1,7 @@
 # File: src/main.py
 """
 Main entry point for the speech-to-text application.
-Supports both CLI and API server modes.
+Supports both CLI and API server modes with document context handling.
 """
 
 import argparse
@@ -59,37 +59,64 @@ def validate_doc_path(doc_path: str) -> bool:
     Returns:
         bool: True if document is valid and readable
     """
-    content = safe_read_file(doc_path)
+    if not doc_path:
+        return True  # No document is valid
+
+    path = validate_file_path(doc_path, must_exist=True)
+    if not path:
+        logging.error(f"Invalid document path or file not found: {doc_path}")
+        return False
+
+    content = safe_read_file(path)
     if not content:
+        logging.error(f"Failed to read document or empty file: {doc_path}")
         return False
 
     lines = content.splitlines()
     preview_lines = lines[:10]
     preview = "\n".join(preview_lines)
     logging.debug(f"Document preview (first 10 lines):\n{preview}\n...")
-    logging.info(f"Document validated: {validate_file_path(doc_path)}")
+    logging.info(f"Document validated: {doc_path}")
     return True
 
 def run_cli(args):
-    """Run the application in CLI mode."""
+    """
+    Run the application in CLI mode.
+    
+    Supports document context with both new and existing chat sessions.
+    Document context is applied per request without modifying chat history.
+    """
     logging.info("=== Application Initialization (CLI Mode) ===")
     logging.info(f"Current working directory: {os.getcwd()}")
     verify_output_directory()
 
+    # Validate document path if provided
     if args.doc and not validate_doc_path(args.doc):
+        logging.error("Document validation failed. Exiting.")
         return
 
+    # Initialize chat handler
     chat_handler = None
     if args.chat or args.chat_voice or args.chat_voice_save:
         chat_handler = ChatHandler()
+        
         if args.chat_id:
+            # Load existing chat session
             if not chat_handler.load_existing_chat(args.chat_id):
                 logging.error(f"Failed to load chat session: {args.chat_id}")
                 return
             logging.info(f"Resumed chat session: {args.chat_id}")
+            
+            # Log document context if provided
+            if args.doc:
+                logging.info(f"Using document context with existing chat: {args.doc}")
         else:
-            chat_handler.start_new_chat(doc_path=args.doc)
+            # Start new chat session
+            chat_handler.start_new_chat()
             logging.info("Started new chat session")
+            
+            if args.doc:
+                logging.info(f"Using document context with new chat: {args.doc}")
 
     try:
         with AudioRecorder() as recorder:
@@ -97,7 +124,8 @@ def run_cli(args):
             transcriber = WhisperTranscriber()
 
             if args.single:
-                handle_transcription(
+                # Single transcription with document context
+                success, error, response = handle_transcription(
                     recorder,
                     transcriber,
                     copy_to_clipboard=args.copy,
@@ -108,10 +136,17 @@ def run_cli(args):
                     stream_to_speakers=args.chat_voice or args.chat_voice_save,
                     save_to_file=args.chat_voice_save,
                     optimize_voice=args.optimize,
+                    doc_path=args.doc
                 )
+                
+                if error:
+                    logging.error(f"Transcription error: {error}")
+                elif response and response.get("doc_path"):
+                    logging.info(f"Processed with document context: {response['doc_path']}")
             else:
+                # Continuous transcription loop
                 while True:
-                    if not handle_transcription(
+                    success, error, response = handle_transcription(
                         recorder,
                         transcriber,
                         copy_to_clipboard=args.copy,
@@ -122,8 +157,17 @@ def run_cli(args):
                         stream_to_speakers=args.chat_voice or args.chat_voice_save,
                         save_to_file=args.chat_voice_save,
                         optimize_voice=args.optimize,
-                    ):
+                        doc_path=args.doc
+                    )
+                    
+                    if not success:
+                        if error:
+                            logging.error(f"Transcription error: {error}")
                         break
+                    
+                    if response and response.get("doc_path"):
+                        logging.info(f"Processed with document context: {response['doc_path']}")
+                    
                     logging.info("Press Enter to start listening again...")
                     input()
 
@@ -147,9 +191,13 @@ def run_server(port: int = 8081):
 def main():
     """Main function to parse arguments and run in appropriate mode."""
     parser = argparse.ArgumentParser(
-        description="Real-time speech-to-text transcription program with CLI and API modes."
+        description=(
+            "Real-time speech-to-text transcription program with CLI and API modes. "
+            "Supports document context analysis for both new and existing chat sessions."
+        )
     )
 
+    # Server mode arguments
     parser.add_argument("--server", action="store_true", help="Run in API server mode")
     parser.add_argument(
         "--port",
@@ -158,6 +206,7 @@ def main():
         help="Port number for API server (default: 8081)",
     )
 
+    # Core functionality arguments
     parser.add_argument(
         "--single", action="store_true", help="Capture a single speech input and exit"
     )
@@ -169,6 +218,8 @@ def main():
     parser.add_argument(
         "--copy", action="store_true", help="Copy transcription to clipboard"
     )
+
+    # Processing options
     parser.add_argument(
         "--kokoro", action="store_true", help="Enable Kokoro text-to-speech conversion"
     )
@@ -180,22 +231,34 @@ def main():
     parser.add_argument(
         "--llm", action="store_true", help="Enable LLM processing of transcribed text"
     )
-    parser.add_argument(
+
+    # Chat mode arguments
+    chat_group = parser.add_argument_group("Chat Options")
+    chat_group.add_argument(
         "--chat", action="store_true", help="Enable interactive chat mode with LLM"
     )
-    parser.add_argument(
+    chat_group.add_argument(
         "--chat-voice",
         action="store_true",
         help="Enable chat mode with voice responses streamed to speakers",
     )
-    parser.add_argument(
+    chat_group.add_argument(
         "--chat-voice-save",
         action="store_true",
         help="Enable chat mode with voice responses saved to file",
     )
-    parser.add_argument("--chat-id", type=str, help="Continue an existing chat session")
-    parser.add_argument(
-        "--doc", type=str, help="Path to text file to analyze in chat mode"
+    chat_group.add_argument(
+        "--chat-id", 
+        type=str, 
+        help="Continue an existing chat session"
+    )
+    chat_group.add_argument(
+        "--doc", 
+        type=str, 
+        help=(
+            "Path to text file to analyze in chat mode. "
+            "Can be used with new or existing chat sessions."
+        )
     )
 
     args = parser.parse_args()
