@@ -1,4 +1,4 @@
-# File: src/speech_to_text/transcriber/whisper.py
+# File: src/speech_to_text/transcriber-whisper.py
 """
 Whisper model integration for speech-to-text transcription.
 Handles transcription of audio data using the MLX Whisper model.

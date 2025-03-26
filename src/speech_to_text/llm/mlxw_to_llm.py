@@ -7,8 +7,10 @@ Implements a simpler request structure matching direct API calls.
 import logging
 import json
 import requests
+from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 
+from .file_handler import process_file, prepare_content_message
 from speech_to_text.config.settings import (
     LLM_BASE_URL,
     LLM_MODEL,
@@ -18,7 +20,7 @@ from speech_to_text.config.settings import (
     LLM_REQUEST_TIMEOUT,
     OUTPUT_DIR,
 )
-from speech_to_text.utils.path_utils import ensure_directory, safe_write_file, safe_read_file
+from speech_to_text.utils.path_utils import ensure_directory, safe_write_file
 
 
 class MLXWToLLM:
@@ -71,7 +73,7 @@ class MLXWToLLM:
         current_text: str, 
         message_history: List[Dict[str, str]],
         doc_path: Optional[str] = None
-    ) -> List[Dict[str, str]]:
+    ) -> List[Dict[str, Any]]:
         """
         Prepare messages array for LLM request, adding document context if provided.
 
@@ -81,7 +83,7 @@ class MLXWToLLM:
             doc_path: Optional path to document for analysis
 
         Returns:
-            List[Dict[str, str]]: Properly ordered messages for LLM request
+            List[Dict[str, Any]]: Properly ordered messages for LLM request
         """
         if not current_text.strip():
             logging.warning("Empty current text provided")
@@ -89,18 +91,23 @@ class MLXWToLLM:
 
         messages = []
 
-        # Add document context as system message if provided
+        # Process document if provided
         if doc_path:
-            doc_content = safe_read_file(doc_path)
-            if doc_content:
-                doc_message = {
-                    "role": "system",
-                    "content": (
-                        f"<<DOCUMENT CONTEXT>>\n{doc_content}\n<<END DOCUMENT CONTEXT>>\n\n"
-                        "Consider the above document context when responding to queries. "
-                        "You can reference specific parts when relevant."
-                    )
-                }
+            processed_content, is_image = process_file(doc_path)
+            if processed_content:
+                if is_image:
+                    # For images, add as user message
+                    doc_message = prepare_content_message(processed_content, is_image=True)
+                else:
+                    # For text/PDF, add as system message
+                    doc_message = {
+                        "role": "system",
+                        "content": (
+                            f"<<DOCUMENT CONTEXT>>\n{processed_content}\n<<END DOCUMENT CONTEXT>>\n\n"
+                            "Consider the above document context when responding to queries. "
+                            "You can reference specific parts when relevant."
+                        )
+                    }
                 messages.append(doc_message)
                 logging.info(f"Added document context from: {doc_path}")
 

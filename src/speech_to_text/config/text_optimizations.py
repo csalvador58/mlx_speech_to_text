@@ -36,7 +36,7 @@ def get_default_char_replacements() -> Dict[str, str]:
         "e.g.": "example given",
         "i.e.": "in example",
         ".": "...",  # Extend pause
-        ":": ",",  # Natural pause
+        ":": "...",  # Natural pause
         ";": ",",  # Natural pause
         "–": " ",  # Space for readability
         "—": " ",  # Space for readability
